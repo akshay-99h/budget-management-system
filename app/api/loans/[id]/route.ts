@@ -1,0 +1,51 @@
+import { NextResponse } from "next/server"
+import { requireAuth } from "@/lib/auth-helpers"
+import { updateLoan, deleteLoan, getLoans } from "@/lib/data/storage"
+import { loanSchema } from "@/lib/validations"
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAuth()
+    const body = await request.json()
+    const validated = loanSchema.parse(body)
+    const { id } = await params
+
+    await updateLoan(user.id, id, validated)
+    const loans = await getLoans(user.id)
+    const updated = loans.find((l) => l.id === id)
+
+    return NextResponse.json(updated)
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Validation error", details: error.errors },
+        { status: 400 }
+      )
+    }
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAuth()
+    const { id } = await params
+    await deleteLoan(user.id, id)
+    return NextResponse.json({ message: "Loan deleted" })
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
