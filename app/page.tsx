@@ -8,6 +8,7 @@ export default async function Home() {
     redirect("/dashboard")
   }
   
-  redirect("/login")
+  // Redirect to landing page instead of login
+  redirect("/landing")
 }
 
