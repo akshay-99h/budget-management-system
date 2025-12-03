@@ -126,37 +126,64 @@ export default function TransactionsPage() {
   // Mobile App View
   if (isMobileApp) {
     return (
-      <div className="space-y-4 animate-in fade-in-50 duration-500">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" />
-            Activity
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Recent transactions and loans
-          </p>
+      <>
+        <div className="space-y-4 animate-in fade-in-50 duration-500">
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Receipt className="h-6 w-6 text-primary" />
+              Activity
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Recent transactions and loans
+            </p>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/budgets">
+              <Button variant="outline" className="w-full gap-2 h-14">
+                <Target className="h-5 w-5" />
+                Budgets
+              </Button>
+            </Link>
+            <Link href="/loans">
+              <Button variant="outline" className="w-full gap-2 h-14">
+                <HandCoins className="h-5 w-5" />
+                Loans
+              </Button>
+            </Link>
+          </div>
+
+          {/* Unified Activity List */}
+          <ActivityList transactions={transactions} loans={loans} limit={20} />
         </div>
 
-        {/* Quick Action Buttons */}
-        <div className="grid grid-cols-2 gap-2">
-          <Link href="/budgets">
-            <Button variant="outline" className="w-full gap-2 h-14">
-              <Target className="h-5 w-5" />
-              Budgets
-            </Button>
-          </Link>
-          <Link href="/loans">
-            <Button variant="outline" className="w-full gap-2 h-14">
-              <HandCoins className="h-5 w-5" />
-              Loans
-            </Button>
-          </Link>
-        </div>
+        {/* Floating Action Button */}
+        <button
+          onClick={() => setIsDialogOpen(true)}
+          className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
+          aria-label="Add transaction"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
 
-        {/* Unified Activity List */}
-        <ActivityList transactions={transactions} loans={loans} limit={20} />
-      </div>
+        {/* Transaction Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-[95vw] max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Add Transaction</DialogTitle>
+              <DialogDescription>
+                Record a new income or expense
+              </DialogDescription>
+            </DialogHeader>
+            <TransactionForm
+              onSubmit={handleSubmit}
+              onCancel={() => setIsDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
     )
   }
 
