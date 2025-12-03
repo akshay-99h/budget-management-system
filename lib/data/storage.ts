@@ -174,7 +174,7 @@ export async function getUsers(): Promise<User[]> {
   await ensureConnection();
   const users = await UserModel.find().lean();
   return users.map((u) => ({
-    id: u._id.toString(),
+    id: u.id,
     name: u.name,
     email: u.email,
     password: u.password,
@@ -187,7 +187,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const user = await UserModel.findOne({ email: email.toLowerCase() }).lean();
   if (!user) return null;
   return {
-    id: user._id.toString(),
+    id: user.id,
     name: user.name,
     email: user.email,
     password: user.password,
@@ -197,10 +197,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function getUserById(id: string): Promise<User | null> {
   await ensureConnection();
-  const user = await UserModel.findById(id).lean();
+  const user = await UserModel.findOne({ id }).lean();
   if (!user) return null;
   return {
-    id: user._id.toString(),
+    id: user.id,
     name: user.name,
     email: user.email,
     password: user.password,
@@ -210,9 +210,10 @@ export async function getUserById(id: string): Promise<User | null> {
 
 export async function saveUser(user: User): Promise<void> {
   await ensureConnection();
-  await UserModel.findByIdAndUpdate(
-    user.id,
+  await UserModel.findOneAndUpdate(
+    { id: user.id },
     {
+      id: user.id,
       name: user.name,
       email: user.email.toLowerCase(),
       password: user.password,
