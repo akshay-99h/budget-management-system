@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-2025-v1'
+const CACHE_NAME = 'budget-2025-v2'
 const urlsToCache = [
   '/',
   '/dashboard',
@@ -40,9 +40,14 @@ self.addEventListener('activate', (event) => {
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   // Skip API routes (data is stored in MongoDB)
+  // Skip non-GET requests
+  // Skip different-origin requests
+  // Skip navigation requests to avoid redirect issues in Safari
   if (
     event.request.url.includes('/api/') ||
-    event.request.method !== 'GET'
+    event.request.method !== 'GET' ||
+    !event.request.url.startsWith(self.location.origin) ||
+    event.request.mode === 'navigate'
   ) {
     return
   }
