@@ -16,22 +16,27 @@ const getMongoUri = () => {
   // Check if URI already has a database name
   if (uri.includes("mongodb+srv://") || uri.includes("mongodb://")) {
     // Extract the protocol
-    const protocol = uri.includes("mongodb+srv://") ? "mongodb+srv://" : "mongodb://";
+    const protocol = uri.includes("mongodb+srv://")
+      ? "mongodb+srv://"
+      : "mongodb://";
     const afterProtocol = uri.replace(protocol, "");
-    
+
     // Find where the query string starts
     const queryIndex = afterProtocol.indexOf("?");
-    const beforeQuery = queryIndex > 0 ? afterProtocol.substring(0, queryIndex) : afterProtocol;
-    const queryString = queryIndex > 0 ? afterProtocol.substring(queryIndex) : "";
-    
+    const beforeQuery =
+      queryIndex > 0 ? afterProtocol.substring(0, queryIndex) : afterProtocol;
+    const queryString =
+      queryIndex > 0 ? afterProtocol.substring(queryIndex) : "";
+
     // Check if beforeQuery has a database name (contains a / with text after it)
     // Examples:
     // - "user:pass@host" -> no database
     // - "user:pass@host/" -> no database (trailing slash)
     // - "user:pass@host/dbname" -> has database
     const lastSlashIndex = beforeQuery.lastIndexOf("/");
-    const hasDatabaseName = lastSlashIndex > 0 && lastSlashIndex < beforeQuery.length - 1;
-    
+    const hasDatabaseName =
+      lastSlashIndex > 0 && lastSlashIndex < beforeQuery.length - 1;
+
     if (!hasDatabaseName) {
       // No database name, add it
       // Remove trailing slash if present
@@ -96,7 +101,10 @@ async function connectDB() {
       .connect(finalMongoUri, opts)
       .then((mongoose) => {
         console.log("✅ MongoDB connected successfully");
-        console.log("📊 Connected database:", mongoose.connection.db?.databaseName);
+        console.log(
+          "📊 Connected database:",
+          mongoose.connection.db?.databaseName
+        );
         return mongoose;
       })
       .catch((error) => {
