@@ -222,3 +222,72 @@ export async function saveUser(user: User): Promise<void> {
     { upsert: true, new: true }
   );
 }
+
+// Batch delete operations
+export async function deleteTransactionsByMonth(
+  userId: string,
+  month: string
+): Promise<void> {
+  await ensureConnection();
+  await TransactionModel.deleteMany({
+    userId,
+    date: { $regex: `^${month}` },
+  });
+}
+
+export async function deleteTransactionsByYear(
+  userId: string,
+  year: string
+): Promise<void> {
+  await ensureConnection();
+  await TransactionModel.deleteMany({
+    userId,
+    date: { $regex: `^${year}` },
+  });
+}
+
+export async function deleteBudgetsByMonth(
+  userId: string,
+  month: string
+): Promise<void> {
+  await ensureConnection();
+  await BudgetModel.deleteMany({ userId, month });
+}
+
+export async function deleteBudgetsByYear(
+  userId: string,
+  year: string
+): Promise<void> {
+  await ensureConnection();
+  await BudgetModel.deleteMany({
+    userId,
+    month: { $regex: `^${year}` },
+  });
+}
+
+export async function deleteAllTransactions(userId: string): Promise<void> {
+  await ensureConnection();
+  await TransactionModel.deleteMany({ userId });
+}
+
+export async function deleteAllBudgets(userId: string): Promise<void> {
+  await ensureConnection();
+  await BudgetModel.deleteMany({ userId });
+}
+
+export async function deleteAllLoans(userId: string): Promise<void> {
+  await ensureConnection();
+  await LoanModel.deleteMany({ userId });
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  await ensureConnection();
+  // Delete all user data first
+  await Promise.all([
+    TransactionModel.deleteMany({ userId }),
+    BudgetModel.deleteMany({ userId }),
+    LoanModel.deleteMany({ userId }),
+  ]);
+  // Then delete the user
+  await UserModel.deleteOne({ id: userId });
+}
