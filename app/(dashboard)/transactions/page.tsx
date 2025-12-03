@@ -23,6 +23,9 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isPWA } from "@/lib/pwa-utils"
 import Link from "next/link"
+import Joyride, { CallBackProps, STATUS } from "react-joyride"
+import { useTour } from "@/contexts/TourContext"
+import { transactionsTour, transactionsMobileTour, getDesktopStyles, getMobileStyles } from "@/lib/tours"
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -32,11 +35,29 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState<string>("all")
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [isMobileApp, setIsMobileApp] = useState(false)
-  const { toast } = useToast()
+  const { toast} = useToast()
+  const { runTour, stopTour, startTour, isTourCompleted } = useTour()
 
   useEffect(() => {
     setIsMobileApp(isPWA())
   }, [])
+
+  useEffect(() => {
+    if (!isLoading && !isTourCompleted("transactions")) {
+      const timer = setTimeout(() => {
+        startTour("transactions")
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoading, isTourCompleted, startTour])
+
+  const handleJoyrideCallback = (data: CallBackProps) => {
+    const { status } = data
+    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED]
+    if (finishedStatuses.includes(status as string)) {
+      stopTour()
+    }
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -127,6 +148,23 @@ export default function TransactionsPage() {
   if (isMobileApp) {
     return (
       <>
+        <Joyride
+          steps={transactionsMobileTour}
+          run={runTour}
+          continuous
+          showProgress
+          showSkipButton
+          callback={handleJoyrideCallback}
+          styles={getMobileStyles()}
+          locale={{
+            back: "Back",
+            close: "Close",
+            last: "Finish",
+            next: "Next",
+            skip: "Skip",
+          }}
+        />
+
         <div className="space-y-4 animate-in fade-in-50 duration-500">
           {/* Header */}
           <div>
@@ -140,7 +178,7 @@ export default function TransactionsPage() {
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="grid grid-cols-2 gap-2">
+          <div data-tour="quick-actions" className="grid grid-cols-2 gap-2">
             <Link href="/budgets">
               <Button variant="outline" className="w-full gap-2 h-14">
                 <Target className="h-5 w-5" />
@@ -156,11 +194,14 @@ export default function TransactionsPage() {
           </div>
 
           {/* Unified Activity List */}
-          <ActivityList transactions={transactions} loans={loans} limit={20} />
+          <div data-tour="activity-list">
+            <ActivityList transactions={transactions} loans={loans} limit={20} />
+          </div>
         </div>
 
         {/* Floating Action Button */}
         <button
+          data-tour="fab"
           onClick={() => setIsDialogOpen(true)}
           className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 flex items-center justify-center"
           aria-label="Add transaction"
@@ -189,80 +230,101 @@ export default function TransactionsPage() {
 
   // Web View
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
-            <Receipt className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-            Transactions
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm sm:text-base md:text-lg">
-            Manage your income and expenses
-          </p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="gap-2 w-full sm:w-auto">
-              <Plus className="h-5 w-5" />
-              <span className="hidden sm:inline">Add Transaction</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl">Add New Transaction</DialogTitle>
-              <DialogDescription>
-                Record a new income or expense entry
-              </DialogDescription>
-            </DialogHeader>
-            <TransactionForm
-              onSubmit={handleSubmit}
-              onCancel={() => setIsDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <Card className="p-4 border-2">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filters:</span>
-          </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="income">Income</SelectItem>
-              <SelectItem value="expense">Expense</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Transaction List */}
-      <TransactionList
-        transactions={filteredTransactions}
-        onUpdate={fetchTransactions}
+    <>
+      <Joyride
+        steps={transactionsTour}
+        run={runTour}
+        continuous
+        showProgress
+        showSkipButton
+        callback={handleJoyrideCallback}
+        styles={getDesktopStyles()}
+        locale={{
+          back: "Back",
+          close: "Close",
+          last: "Finish",
+          next: "Next",
+          skip: "Skip",
+        }}
       />
-    </div>
+
+      <div className="space-y-6 animate-in fade-in-50 duration-500">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
+              <Receipt className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+              Transactions
+            </h1>
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base md:text-lg">
+              Manage your income and expenses
+            </p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-tour="add-transaction" size="lg" className="gap-2 w-full sm:w-auto">
+                <Plus className="h-5 w-5" />
+                <span className="hidden sm:inline">Add Transaction</span>
+                <span className="sm:hidden">Add</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-2xl">Add New Transaction</DialogTitle>
+                <DialogDescription>
+                  Record a new income or expense entry
+                </DialogDescription>
+              </DialogHeader>
+              <TransactionForm
+                onSubmit={handleSubmit}
+                onCancel={() => setIsDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Filters */}
+        <Card data-tour="filters" className="p-4 border-2">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filters:</span>
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
+                <SelectItem value="expense">Expense</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+
+        {/* Transaction List */}
+        <div data-tour="transaction-list">
+          <TransactionList
+            transactions={filteredTransactions}
+            onUpdate={fetchTransactions}
+          />
+        </div>
+      </div>
+    </>
   )
 }
