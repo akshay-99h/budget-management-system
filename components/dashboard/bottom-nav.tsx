@@ -6,10 +6,10 @@ import { LayoutDashboard, Receipt, BarChart3, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: Receipt },
-  { href: "/reports", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, tourId: "nav-overview" },
+  { href: "/transactions", label: "Transactions", icon: Receipt, tourId: "nav-transactions" },
+  { href: "/reports", label: "Analytics", icon: BarChart3, tourId: "nav-analytics" },
+  { href: "/settings", label: "Settings", icon: Settings, tourId: "nav-settings" },
 ]
 
 export function BottomNav() {
@@ -26,6 +26,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.tourId}
               className={cn(
                 "flex items-center justify-center flex-1 h-full transition-all duration-200 touch-manipulation",
                 "active:scale-90"

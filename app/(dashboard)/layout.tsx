@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger, Sidebar } from "@/compon
 import { AppSidebar } from "@/components/dashboard/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { BottomNav } from "@/components/dashboard/bottom-nav"
+import { HelpButton } from "@/components/tour/HelpButton"
 import { isPWA } from "@/lib/pwa-utils"
 
 export default function DashboardLayout({
@@ -28,6 +29,7 @@ export default function DashboardLayout({
           </div>
         </main>
         <BottomNav />
+        <HelpButton />
       </div>
     )
   }
@@ -48,6 +50,7 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+        <HelpButton />
       </SidebarInset>
     </SidebarProvider>
   )
