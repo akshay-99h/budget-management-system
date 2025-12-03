@@ -5,7 +5,7 @@ import { Transaction, Budget, Loan } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, Share2 } from "lucide-react"
 import {
   getMonthlyIncome,
   getMonthlyExpenses,
@@ -24,11 +24,13 @@ import {
 } from "@/components/ui/table"
 import {
   exportToCSV,
+  dataToCSVString,
   formatTransactionsForExport,
   formatBudgetsForExport,
   formatLoansForExport,
 } from "@/lib/utils/export"
 import { useToast } from "@/hooks/use-toast"
+import { isPWA } from "@/lib/pwa-utils"
 
 export default function ReportsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -36,7 +38,12 @@ export default function ReportsPage() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
+  const [isMobileApp, setIsMobileApp] = useState(false)
   const { toast } = useToast()
+
+  useEffect(() => {
+    setIsMobileApp(isPWA())
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,44 +75,121 @@ export default function ReportsPage() {
     fetchData()
   }, [])
 
+  const createCSVBlob = (csvContent: string): Blob => {
+    return new Blob([csvContent], { type: "text/csv" })
+  }
+
+  const shareData = async (file: File, title: string) => {
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: title,
+          files: [file],
+        })
+        return true
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error("Error sharing:", error)
+        }
+        return false
+      }
+    }
+    return false
+  }
+
   const handleExport = async (type: "transactions" | "budgets" | "loans" | "all") => {
     try {
       const response = await fetch(`/api/data/export?type=${type}`)
       if (!response.ok) throw new Error("Failed to export data")
 
       const data = await response.json()
+      const dateStr = format(new Date(), "yyyy-MM-dd")
+      const files: File[] = []
 
       if (type === "transactions" || type === "all") {
         if (data.transactions && data.transactions.length > 0) {
-          exportToCSV(
-            formatTransactionsForExport(data.transactions),
-            `transactions-${format(new Date(), "yyyy-MM-dd")}.csv`
-          )
+          const formattedData = formatTransactionsForExport(data.transactions)
+          const fileName = `transactions-${dateStr}.csv`
+
+          if (isMobileApp) {
+            const csvString = dataToCSVString(formattedData)
+            const blob = createCSVBlob(csvString)
+            const file = new File([blob], fileName, { type: "text/csv" })
+            files.push(file)
+          } else {
+            exportToCSV(formattedData, fileName)
+          }
         }
       }
 
       if (type === "budgets" || type === "all") {
         if (data.budgets && data.budgets.length > 0) {
-          exportToCSV(
-            formatBudgetsForExport(data.budgets),
-            `budgets-${format(new Date(), "yyyy-MM-dd")}.csv`
-          )
+          const formattedData = formatBudgetsForExport(data.budgets)
+          const fileName = `budgets-${dateStr}.csv`
+
+          if (isMobileApp) {
+            const csvString = dataToCSVString(formattedData)
+            const blob = createCSVBlob(csvString)
+            const file = new File([blob], fileName, { type: "text/csv" })
+            files.push(file)
+          } else {
+            exportToCSV(formattedData, fileName)
+          }
         }
       }
 
       if (type === "loans" || type === "all") {
         if (data.loans && data.loans.length > 0) {
-          exportToCSV(
-            formatLoansForExport(data.loans),
-            `loans-${format(new Date(), "yyyy-MM-dd")}.csv`
-          )
+          const formattedData = formatLoansForExport(data.loans)
+          const fileName = `loans-${dateStr}.csv`
+
+          if (isMobileApp) {
+            const csvString = dataToCSVString(formattedData)
+            const blob = createCSVBlob(csvString)
+            const file = new File([blob], fileName, { type: "text/csv" })
+            files.push(file)
+          } else {
+            exportToCSV(formattedData, fileName)
+          }
         }
       }
 
-      toast({
-        title: "Success",
-        description: "Data exported successfully",
-      })
+      // Share files if on mobile app
+      if (isMobileApp && files.length > 0) {
+        let shared = false
+        for (const file of files) {
+          const result = await shareData(file, `Budget 2025 - ${type}`)
+          if (result) shared = true
+        }
+
+        if (shared) {
+          toast({
+            title: "Success",
+            description: "Data shared successfully",
+          })
+        } else {
+          // Fallback to download if share fails
+          files.forEach(file => {
+            const url = URL.createObjectURL(file)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = file.name
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+          })
+          toast({
+            title: "Success",
+            description: "Data exported successfully",
+          })
+        }
+      } else if (!isMobileApp) {
+        toast({
+          title: "Success",
+          description: "Data exported successfully",
+        })
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -162,9 +246,13 @@ export default function ReportsPage() {
             </SelectContent>
           </Select>
           <Button onClick={() => handleExport("all")} className="w-full sm:w-auto">
-            <Download className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Export All</span>
-            <span className="sm:hidden">Export</span>
+            {isMobileApp ? (
+              <Share2 className="h-4 w-4 mr-2" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            <span className="hidden sm:inline">{isMobileApp ? "Share All" : "Export All"}</span>
+            <span className="sm:hidden">{isMobileApp ? "Share" : "Export"}</span>
           </Button>
         </div>
       </div>
@@ -250,8 +338,8 @@ export default function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Export Data</CardTitle>
-            <CardDescription>Download your data as CSV</CardDescription>
+            <CardTitle>{isMobileApp ? "Share Data" : "Export Data"}</CardTitle>
+            <CardDescription>{isMobileApp ? "Share your data as CSV" : "Download your data as CSV"}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <Button
@@ -259,24 +347,36 @@ export default function ReportsPage() {
               className="w-full justify-start"
               onClick={() => handleExport("transactions")}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export Transactions
+              {isMobileApp ? (
+                <Share2 className="h-4 w-4 mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isMobileApp ? "Share" : "Export"} Transactions
             </Button>
             <Button
               variant="outline"
               className="w-full justify-start"
               onClick={() => handleExport("budgets")}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export Budgets
+              {isMobileApp ? (
+                <Share2 className="h-4 w-4 mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isMobileApp ? "Share" : "Export"} Budgets
             </Button>
             <Button
               variant="outline"
               className="w-full justify-start"
               onClick={() => handleExport("loans")}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export Loans
+              {isMobileApp ? (
+                <Share2 className="h-4 w-4 mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isMobileApp ? "Share" : "Export"} Loans
             </Button>
           </CardContent>
         </Card>

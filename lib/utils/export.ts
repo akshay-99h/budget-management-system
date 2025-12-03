@@ -1,10 +1,10 @@
 import { Transaction, Budget, Loan } from "@/lib/types"
 
-export function exportToCSV(data: any[], filename: string) {
-  if (data.length === 0) return
+export function dataToCSVString(data: any[]): string {
+  if (data.length === 0) return ""
 
   const headers = Object.keys(data[0])
-  const csvContent = [
+  return [
     headers.join(","),
     ...data.map((row) =>
       headers
@@ -17,7 +17,12 @@ export function exportToCSV(data: any[], filename: string) {
         .join(",")
     ),
   ].join("\n")
+}
 
+export function exportToCSV(data: any[], filename: string) {
+  if (data.length === 0) return
+
+  const csvContent = dataToCSVString(data)
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
   const url = URL.createObjectURL(blob)
