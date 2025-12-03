@@ -29,6 +29,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { isPWA } from "@/lib/pwa-utils"
 import Link from "next/link"
+import Joyride, { CallBackProps, STATUS } from "react-joyride"
+import { useTour } from "@/contexts/TourContext"
+import { dashboardTour, getDesktopStyles, getMobileStyles } from "@/lib/tours"
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
 
@@ -38,6 +41,7 @@ export default function DashboardPage() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileApp, setIsMobileApp] = useState(false)
+  const { runTour, stopTour, startTour, isTourCompleted } = useTour()
 
   const currentMonth = format(new Date(), "yyyy-MM")
   const monthStart = startOfMonth(new Date())
@@ -46,6 +50,24 @@ export default function DashboardPage() {
   useEffect(() => {
     setIsMobileApp(isPWA())
   }, [])
+
+  useEffect(() => {
+    // Auto-start tour for first-time users after data loads
+    if (!isLoading && !isTourCompleted("dashboard")) {
+      const timer = setTimeout(() => {
+        startTour("dashboard")
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoading, isTourCompleted, startTour])
+
+  const handleJoyrideCallback = (data: CallBackProps) => {
+    const { status } = data
+    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED]
+    if (finishedStatuses.includes(status as string)) {
+      stopTour()
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -128,40 +150,58 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in-50 duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
-            <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-            Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm sm:text-base md:text-lg">
-            Welcome back! Here's your financial overview for {format(new Date(), "MMMM yyyy")}
-          </p>
-        </div>
-      </div>
+    <>
+      <Joyride
+        steps={dashboardTour}
+        run={runTour}
+        continuous
+        showProgress
+        showSkipButton
+        callback={handleJoyrideCallback}
+        styles={isMobileApp ? getMobileStyles() : getDesktopStyles()}
+        locale={{
+          back: "Back",
+          close: "Close",
+          last: "Finish",
+          next: "Next",
+          skip: "Skip",
+        }}
+      />
 
-      {/* Quick Actions for Mobile App */}
-      {isMobileApp && (
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/budgets">
-            <Button variant="outline" className="w-full gap-2 h-14">
-              <Target className="h-5 w-5" />
-              Set Budget
-            </Button>
-          </Link>
-          <Link href="/loans">
-            <Button variant="outline" className="w-full gap-2 h-14">
-              <HandCoins className="h-5 w-5" />
-              Add Loan
-            </Button>
-          </Link>
+      <div className="space-y-8 animate-in fade-in-50 duration-500">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
+              <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+              Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base md:text-lg">
+              Welcome back! Here's your financial overview for {format(new Date(), "MMMM yyyy")}
+            </p>
+          </div>
         </div>
-      )}
 
-      {/* Stats Cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Quick Actions for Mobile App */}
+        {isMobileApp && (
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/budgets">
+              <Button variant="outline" className="w-full gap-2 h-14">
+                <Target className="h-5 w-5" />
+                Set Budget
+              </Button>
+            </Link>
+            <Link href="/loans">
+              <Button variant="outline" className="w-full gap-2 h-14">
+                <HandCoins className="h-5 w-5" />
+                Add Loan
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        <div data-tour="stats-cards" className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
@@ -260,7 +300,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
+      <div data-tour="charts" className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
         <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -349,7 +389,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Transactions */}
-      <Card className="border-2 hover:shadow-lg transition-shadow">
+      <Card data-tour="recent-transactions" className="border-2 hover:shadow-lg transition-shadow">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-primary" />
@@ -414,5 +454,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
     </div>
+  </>
   )
 }
