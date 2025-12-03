@@ -24,8 +24,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, HandCoins, ArrowUpRight, Sparkles } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, HandCoins, ArrowUpRight, Sparkles, Target } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { isPWA } from "@/lib/pwa-utils"
+import Link from "next/link"
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
 
@@ -34,10 +37,15 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loans, setLoans] = useState<Loan[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isMobileApp, setIsMobileApp] = useState(false)
 
   const currentMonth = format(new Date(), "yyyy-MM")
   const monthStart = startOfMonth(new Date())
   const monthEnd = endOfMonth(new Date())
+
+  useEffect(() => {
+    setIsMobileApp(isPWA())
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -133,6 +141,24 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* Quick Actions for Mobile App */}
+      {isMobileApp && (
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/budgets">
+            <Button variant="outline" className="w-full gap-2 h-14">
+              <Target className="h-5 w-5" />
+              Set Budget
+            </Button>
+          </Link>
+          <Link href="/loans">
+            <Button variant="outline" className="w-full gap-2 h-14">
+              <HandCoins className="h-5 w-5" />
+              Add Loan
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

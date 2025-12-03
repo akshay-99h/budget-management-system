@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Transaction } from "@/lib/types"
+import { Transaction, Loan } from "@/lib/types"
 import { TransactionList } from "@/components/transactions/transaction-list"
+import { ActivityList } from "@/components/dashboard/activity-list"
 import { Button } from "@/components/ui/button"
-import { Plus, Receipt, Filter } from "lucide-react"
+import { Plus, Receipt, Filter, Target, HandCoins } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -20,14 +21,22 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { isPWA } from "@/lib/pwa-utils"
+import Link from "next/link"
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loans, setLoans] = useState<Loan[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>("all")
   const [filterCategory, setFilterCategory] = useState<string>("all")
+  const [isMobileApp, setIsMobileApp] = useState(false)
   const { toast } = useToast()
+
+  useEffect(() => {
+    setIsMobileApp(isPWA())
+  }, [])
 
   const fetchTransactions = async () => {
     try {
@@ -46,9 +55,23 @@ export default function TransactionsPage() {
     }
   }
 
+  const fetchLoans = async () => {
+    try {
+      const response = await fetch("/api/loans")
+      if (!response.ok) throw new Error("Failed to fetch loans")
+      const data = await response.json()
+      setLoans(data)
+    } catch (error) {
+      console.error("Failed to load loans:", error)
+    }
+  }
+
   useEffect(() => {
     fetchTransactions()
-  }, [])
+    if (isMobileApp) {
+      fetchLoans()
+    }
+  }, [isMobileApp])
 
   const handleSubmit = async (data: TransactionInput) => {
     try {
@@ -100,6 +123,44 @@ export default function TransactionsPage() {
     )
   }
 
+  // Mobile App View
+  if (isMobileApp) {
+    return (
+      <div className="space-y-4 animate-in fade-in-50 duration-500">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Receipt className="h-6 w-6 text-primary" />
+            Activity
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Recent transactions and loans
+          </p>
+        </div>
+
+        {/* Quick Action Buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/budgets">
+            <Button variant="outline" className="w-full gap-2 h-14">
+              <Target className="h-5 w-5" />
+              Budgets
+            </Button>
+          </Link>
+          <Link href="/loans">
+            <Button variant="outline" className="w-full gap-2 h-14">
+              <HandCoins className="h-5 w-5" />
+              Loans
+            </Button>
+          </Link>
+        </div>
+
+        {/* Unified Activity List */}
+        <ActivityList transactions={transactions} loans={loans} limit={20} />
+      </div>
+    )
+  }
+
+  // Web View
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-500">
       {/* Header */}
