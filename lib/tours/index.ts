@@ -208,23 +208,32 @@ export const getMobileStyles = () => ({
   tooltip: {
     fontSize: "14px",
     padding: "16px",
+    backgroundColor: "hsl(var(--background))",
+    borderRadius: "8px",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
   },
   tooltipContainer: {
     textAlign: "left" as const,
+    backgroundColor: "hsl(var(--background))",
   },
   buttonNext: {
     backgroundColor: "hsl(var(--primary))",
     fontSize: "14px",
     padding: "8px 16px",
     borderRadius: "8px",
+    border: "none",
   },
   buttonBack: {
     color: "hsl(var(--muted-foreground))",
     fontSize: "14px",
+    backgroundColor: "transparent",
+    border: "none",
   },
   buttonSkip: {
     color: "hsl(var(--muted-foreground))",
     fontSize: "14px",
+    backgroundColor: "transparent",
+    border: "none",
   },
 })
 
@@ -240,22 +249,31 @@ export const getDesktopStyles = () => ({
   tooltip: {
     fontSize: "16px",
     padding: "20px",
+    backgroundColor: "hsl(var(--background))",
+    borderRadius: "8px",
+    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
   },
   tooltipContainer: {
     textAlign: "left" as const,
+    backgroundColor: "hsl(var(--background))",
   },
   buttonNext: {
     backgroundColor: "hsl(var(--primary))",
     fontSize: "14px",
     padding: "10px 20px",
     borderRadius: "8px",
+    border: "none",
   },
   buttonBack: {
     color: "hsl(var(--muted-foreground))",
     fontSize: "14px",
+    backgroundColor: "transparent",
+    border: "none",
   },
   buttonSkip: {
     color: "hsl(var(--muted-foreground))",
     fontSize: "14px",
+    backgroundColor: "transparent",
+    border: "none",
   },
 })

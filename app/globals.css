@@ -241,3 +241,23 @@
     animation: float 4s ease-in-out infinite;
   }
 }
+
+/* Ensure Joyride tooltips are fully opaque */
+@layer base {
+  /* Override any transparency on Joyride tooltips */
+  [data-joyride-tooltip],
+  .react-joyride__tooltip,
+  .react-joyride__tooltip > div {
+    background-color: hsl(var(--background)) !important;
+    opacity: 1 !important;
+  }
+
+  .react-joyride__tooltip__content {
+    background-color: hsl(var(--background)) !important;
+    opacity: 1 !important;
+  }
+
+  .react-joyride__tooltip__footer {
+    background-color: transparent !important;
+  }
+}
