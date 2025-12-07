@@ -20,6 +20,7 @@ export type Budget = {
 export type Loan = {
   id: string
   borrowerName: string
+  borrowerEmail?: string
   amount: number
   date: string
   dueDate: string
@@ -30,6 +31,24 @@ export type Loan = {
   }>
   notes?: string
   userId: string
+  reminderEnabled: boolean
+  lastReminderSent?: string
+}
+
+export type SIP = {
+  id: string
+  name: string
+  amount: number
+  frequency: "daily" | "weekly" | "monthly" | "yearly"
+  startDate: string
+  endDate?: string
+  category: string
+  description?: string
+  isActive: boolean
+  lastExecuted?: string
+  nextExecutionDate: string
+  userId: string
+  createdAt: string
 }
 
 export type User = {

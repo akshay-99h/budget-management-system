@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose"
 export interface ILoan extends Document {
   id: string
   borrowerName: string
+  borrowerEmail?: string
   amount: number
   date: string
   dueDate: string
@@ -13,6 +14,8 @@ export interface ILoan extends Document {
   }>
   notes?: string
   userId: string
+  reminderEnabled: boolean
+  lastReminderSent?: string
 }
 
 const LoanSchema = new Schema<ILoan>(
@@ -25,6 +28,9 @@ const LoanSchema = new Schema<ILoan>(
     borrowerName: {
       type: String,
       required: true,
+    },
+    borrowerEmail: {
+      type: String,
     },
     amount: {
       type: Number,
@@ -56,6 +62,13 @@ const LoanSchema = new Schema<ILoan>(
       },
     ],
     notes: {
+      type: String,
+    },
+    reminderEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    lastReminderSent: {
       type: String,
     },
     userId: {
