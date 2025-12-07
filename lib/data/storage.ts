@@ -40,16 +40,21 @@ export async function saveTransaction(
   transaction: Transaction
 ): Promise<void> {
   await ensureConnection();
-  await TransactionModel.create({
-    id: transaction.id,
-    type: transaction.type,
-    amount: transaction.amount,
-    category: transaction.category,
-    date: transaction.date,
-    description: transaction.description,
-    userId,
-    createdAt: new Date(transaction.createdAt),
-  });
+  // Use findOneAndUpdate with upsert to handle duplicates gracefully
+  await TransactionModel.findOneAndUpdate(
+    { id: transaction.id, userId },
+    {
+      id: transaction.id,
+      type: transaction.type,
+      amount: transaction.amount,
+      category: transaction.category,
+      date: transaction.date,
+      description: transaction.description,
+      userId,
+      createdAt: new Date(transaction.createdAt),
+    },
+    { upsert: true, new: true }
+  );
 }
 
 export async function updateTransaction(
@@ -136,17 +141,22 @@ export async function getLoans(userId: string): Promise<Loan[]> {
 
 export async function saveLoan(userId: string, loan: Loan): Promise<void> {
   await ensureConnection();
-  await LoanModel.create({
-    id: loan.id,
-    borrowerName: loan.borrowerName,
-    amount: loan.amount,
-    date: loan.date,
-    dueDate: loan.dueDate,
-    status: loan.status,
-    payments: loan.payments,
-    notes: loan.notes,
-    userId,
-  });
+  // Use findOneAndUpdate with upsert to handle duplicates gracefully
+  await LoanModel.findOneAndUpdate(
+    { id: loan.id, userId },
+    {
+      id: loan.id,
+      borrowerName: loan.borrowerName,
+      amount: loan.amount,
+      date: loan.date,
+      dueDate: loan.dueDate,
+      status: loan.status,
+      payments: loan.payments,
+      notes: loan.notes,
+      userId,
+    },
+    { upsert: true, new: true }
+  );
 }
 
 export async function updateLoan(
