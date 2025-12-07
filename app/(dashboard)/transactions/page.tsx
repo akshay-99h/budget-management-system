@@ -5,7 +5,7 @@ import { Transaction, Loan } from "@/lib/types"
 import { TransactionList } from "@/components/transactions/transaction-list"
 import { ActivityList } from "@/components/dashboard/activity-list"
 import { Button } from "@/components/ui/button"
-import { Plus, Receipt, Filter, Target, HandCoins } from "lucide-react"
+import { Plus, Receipt, Filter, Target, HandCoins, Wifi, WifiOff } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,8 @@ import Link from "next/link"
 import Joyride, { CallBackProps, STATUS } from "react-joyride"
 import { useTour } from "@/contexts/TourContext"
 import { transactionsTour, transactionsMobileTour, getDesktopStyles, getMobileStyles } from "@/lib/tours"
+import { useOffline } from "@/lib/hooks/use-offline"
+import { v4 as uuidv4 } from "uuid"
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -35,8 +37,16 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState<string>("all")
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [isMobileApp, setIsMobileApp] = useState(false)
-  const { toast} = useToast()
+  const { toast } = useToast()
   const { runTour, stopTour, startTour, isTourCompleted } = useTour()
+  const {
+    isOnline,
+    isSyncing,
+    saveTransaction,
+    getTransactions,
+    deleteTransaction,
+    sync,
+  } = useOffline()
 
   useEffect(() => {
     setIsMobileApp(isPWA())
@@ -61,9 +71,8 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch("/api/transactions")
-      if (!response.ok) throw new Error("Failed to fetch transactions")
-      const data = await response.json()
+      // Use offline storage which handles online/offline automatically
+      const data = await getTransactions()
       setTransactions(data)
     } catch (error) {
       toast({
@@ -96,25 +105,33 @@ export default function TransactionsPage() {
 
   const handleSubmit = async (data: TransactionInput) => {
     try {
-      const response = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
+      const transaction: Transaction = {
+        id: uuidv4(),
+        ...data,
+        userId: "", // Will be set by offline storage
+        createdAt: new Date().toISOString(),
+      }
 
-      if (!response.ok) throw new Error("Failed to save transaction")
+      await saveTransaction(transaction)
 
       toast({
         title: "Success",
-        description: "Transaction added successfully",
+        description: isOnline
+          ? "Transaction added successfully"
+          : "Transaction saved offline. Will sync when online.",
       })
 
       setIsDialogOpen(false)
       fetchTransactions()
-    } catch (error) {
+
+      // Try to sync if online
+      if (isOnline) {
+        sync().catch(console.error)
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to save transaction",
+        description: error.message || "Failed to save transaction",
         variant: "destructive",
       })
     }
@@ -168,13 +185,29 @@ export default function TransactionsPage() {
         <div className="space-y-4 animate-in fade-in-50 duration-500">
           {/* Header */}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Receipt className="h-6 w-6 text-primary" />
-              Activity
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Recent transactions and loans
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                  <Receipt className="h-6 w-6 text-primary" />
+                  Activity
+                </h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Recent transactions and loans
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {isSyncing && (
+                  <span className="text-xs text-muted-foreground animate-pulse">
+                    Syncing...
+                  </span>
+                )}
+                {isOnline ? (
+                  <Wifi className="h-4 w-4 text-green-500" />
+                ) : (
+                  <WifiOff className="h-4 w-4 text-orange-500" />
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Quick Action Buttons */}
@@ -252,10 +285,24 @@ export default function TransactionsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
-              <Receipt className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-              Transactions
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
+                <Receipt className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+                Transactions
+              </h1>
+              <div className="flex items-center gap-2">
+                {isSyncing && (
+                  <span className="text-xs text-muted-foreground animate-pulse">
+                    Syncing...
+                  </span>
+                )}
+                {isOnline ? (
+                  <Wifi className="h-5 w-5 text-green-500" />
+                ) : (
+                  <WifiOff className="h-5 w-5 text-orange-500" />
+                )}
+              </div>
+            </div>
             <p className="text-muted-foreground mt-2 text-sm sm:text-base md:text-lg">
               Manage your income and expenses
             </p>
