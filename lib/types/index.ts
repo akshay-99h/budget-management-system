@@ -5,6 +5,7 @@ export type Transaction = {
   category: string
   date: string
   description?: string
+  bankAccountId: string
   userId: string
   createdAt: string
 }
@@ -35,6 +36,14 @@ export type Loan = {
   lastReminderSent?: string
 }
 
+export type SIPAdjustment = {
+  id: string
+  date: string
+  amount: number
+  type: "withdrawal" | "deposit" | "adjustment"
+  description?: string
+}
+
 export type SIP = {
   id: string
   name: string
@@ -47,6 +56,8 @@ export type SIP = {
   isActive: boolean
   lastExecuted?: string
   nextExecutionDate: string
+  currentNetValue?: number
+  adjustments?: SIPAdjustment[]
   userId: string
   createdAt: string
 }
@@ -92,5 +103,21 @@ export type Wishlist = {
   actualPrice?: number
   userId: string
   createdAt: string
+}
+
+export type Stock = {
+  id: string
+  symbol: string
+  name: string
+  quantity: number
+  purchasePrice: number
+  currentPrice?: number
+  purchaseDate: string
+  broker?: string
+  category: "equity" | "mutual-fund" | "etf" | "bonds" | "other"
+  notes?: string
+  userId: string
+  createdAt: string
+  updatedAt: string
 }
 

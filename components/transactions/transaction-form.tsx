@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { DEFAULT_CATEGORIES } from "@/lib/constants"
-import { Transaction } from "@/lib/types"
+import { Transaction, BankAccount } from "@/lib/types"
 import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface TransactionFormProps {
   transaction?: Transaction
@@ -35,6 +35,8 @@ export function TransactionForm({
   const [selectedType, setSelectedType] = useState<"income" | "expense">(
     transaction?.type || "expense"
   )
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [loadingAccounts, setLoadingAccounts] = useState(true)
 
   const {
     register,
@@ -51,12 +53,35 @@ export function TransactionForm({
           category: transaction.category,
           date: transaction.date,
           description: transaction.description,
+          bankAccountId: transaction.bankAccountId,
         }
       : {
           type: "expense",
           date: new Date().toISOString().split("T")[0],
         },
   })
+
+  useEffect(() => {
+    const fetchBankAccounts = async () => {
+      try {
+        const response = await fetch("/api/bank-accounts")
+        if (response.ok) {
+          const data = await response.json()
+          setBankAccounts(data)
+          // Set default bank account if available and no transaction is being edited
+          if (!transaction && data.length > 0) {
+            const defaultAccount = data.find((acc: BankAccount) => acc.isDefault) || data[0]
+            setValue("bankAccountId", defaultAccount.id)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch bank accounts:", error)
+      } finally {
+        setLoadingAccounts(false)
+      }
+    }
+    fetchBankAccounts()
+  }, [transaction, setValue])
 
   const type = watch("type")
   const categories = DEFAULT_CATEGORIES.filter((c) => c.type === type)
@@ -124,6 +149,37 @@ export function TransactionForm({
         </div>
         {errors.amount && (
           <p className="text-sm text-destructive">{errors.amount.message}</p>
+        )}
+      </div>
+
+      {/* Bank Account */}
+      <div className="space-y-2">
+        <Label htmlFor="bankAccountId" className="text-base font-semibold">
+          Bank Account *
+        </Label>
+        <Select
+          value={watch("bankAccountId")}
+          onValueChange={(value) => setValue("bankAccountId", value)}
+          disabled={isLoading || loadingAccounts}
+        >
+          <SelectTrigger className="h-12 text-base">
+            <SelectValue placeholder={loadingAccounts ? "Loading accounts..." : "Select a bank account"} />
+          </SelectTrigger>
+          <SelectContent>
+            {bankAccounts.map((account) => (
+              <SelectItem key={account.id} value={account.id} className="text-base">
+                {account.name} {account.isDefault && "(Default)"} - ₹{account.balance.toLocaleString()}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.bankAccountId && (
+          <p className="text-sm text-destructive">{errors.bankAccountId.message}</p>
+        )}
+        {bankAccounts.length === 0 && !loadingAccounts && (
+          <p className="text-sm text-muted-foreground">
+            No bank accounts found. Please create a bank account first.
+          </p>
         )}
       </div>
 

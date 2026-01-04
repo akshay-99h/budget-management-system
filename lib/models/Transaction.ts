@@ -7,6 +7,7 @@ export interface ITransaction extends Document {
   category: string
   date: string
   description?: string
+  bankAccountId: string
   userId: string
   createdAt: Date
 }
@@ -37,6 +38,11 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     description: {
       type: String,
+    },
+    bankAccountId: {
+      type: String,
+      required: true,
+      index: true,
     },
     userId: {
       type: String,

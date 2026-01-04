@@ -44,6 +44,7 @@ export async function POST(request: Request) {
               category: record.category,
               date: record.date,
               description: record.description,
+              bankAccountId: record.bankAccountId,
             })
 
             // Check if transaction exists
