@@ -9,25 +9,33 @@ export async function GET() {
   try {
     const user = await requireAuth()
     const loans = await getLoans(user.id)
-    
+
     // Update loan statuses based on due dates and payments
-    const updatedLoans = loans.map((loan) => {
-      const totalPaid = loan.payments.reduce((sum, p) => sum + p.amount, 0)
-      const isFullyPaid = totalPaid >= loan.amount
-      const dueDate = parseISO(loan.dueDate)
-      const isOverdue = !isFullyPaid && isAfter(new Date(), dueDate)
+    const updatedLoans = await Promise.all(
+      loans.map(async (loan) => {
+        const totalPaid = loan.payments.reduce((sum, p) => sum + p.amount, 0)
+        const isFullyPaid = totalPaid >= loan.amount
+        const dueDate = parseISO(loan.dueDate)
+        const isOverdue = !isFullyPaid && isAfter(new Date(), dueDate)
 
-      let status: "active" | "paid" | "overdue" = loan.status
-      if (isFullyPaid) {
-        status = "paid"
-      } else if (isOverdue) {
-        status = "overdue"
-      } else {
-        status = "active"
-      }
+        let status: "active" | "paid" | "overdue" = loan.status
+        if (isFullyPaid) {
+          status = "paid"
+        } else if (isOverdue) {
+          status = "overdue"
+        } else {
+          status = "active"
+        }
 
-      return { ...loan, status }
-    })
+        // Persist status update if it changed
+        if (status !== loan.status) {
+          const { updateLoan } = await import("@/lib/data/storage")
+          await updateLoan(user.id, loan.id, { status })
+        }
+
+        return { ...loan, status }
+      })
+    )
 
     return NextResponse.json(updatedLoans)
   } catch (error: any) {
@@ -47,8 +55,9 @@ export async function POST(request: Request) {
     const loan = {
       id: uuidv4(),
       ...validated,
-      status: "active" as const,
-      payments: [],
+      status: validated.status || ("active" as const),
+      payments: validated.payments || [],
+      reminderEnabled: validated.reminderEnabled ?? true,
       userId: user.id,
     }
 

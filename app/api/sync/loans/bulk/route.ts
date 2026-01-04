@@ -34,12 +34,15 @@ export async function POST(request: Request) {
           try {
             const validated = loanSchema.parse({
               borrowerName: record.borrowerName,
+              borrowerEmail: record.borrowerEmail,
               amount: record.amount,
               date: record.date,
               dueDate: record.dueDate,
               status: record.status,
               payments: record.payments || [],
               notes: record.notes,
+              reminderEnabled: record.reminderEnabled,
+              lastReminderSent: record.lastReminderSent,
             })
 
             const existing = await getLoans(user.id)
@@ -56,6 +59,9 @@ export async function POST(request: Request) {
               await saveLoan(user.id, {
                 id: record.id,
                 ...validated,
+                status: validated.status || "active",
+                payments: validated.payments || [],
+                reminderEnabled: validated.reminderEnabled ?? true,
                 userId: user.id,
               })
             }
