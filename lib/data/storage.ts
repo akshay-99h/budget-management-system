@@ -6,7 +6,8 @@ import LoanModel from "@/lib/models/Loan";
 import SIPModel from "@/lib/models/SIP";
 import BankAccountModel from "@/lib/models/BankAccount";
 import WishlistModel from "@/lib/models/Wishlist";
-import { Transaction, Budget, Loan, User, SIP, BankAccount, Wishlist } from "@/lib/types";
+import StockModel from "@/lib/models/Stock";
+import { Transaction, Budget, Loan, User, SIP, BankAccount, Wishlist, Stock } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
 // Ensure database connection
@@ -34,6 +35,7 @@ export async function getTransactions(userId: string): Promise<Transaction[]> {
     category: t.category,
     date: t.date,
     description: t.description,
+    bankAccountId: t.bankAccountId,
     userId: t.userId,
     createdAt: t.createdAt.toISOString(),
   }));
@@ -54,6 +56,7 @@ export async function saveTransaction(
       category: transaction.category,
       date: transaction.date,
       description: transaction.description,
+      bankAccountId: transaction.bankAccountId,
       userId,
       createdAt: new Date(transaction.createdAt),
     },
@@ -310,6 +313,7 @@ export async function deleteUser(userId: string): Promise<void> {
     SIPModel.deleteMany({ userId }),
     BankAccountModel.deleteMany({ userId }),
     WishlistModel.deleteMany({ userId }),
+    StockModel.deleteMany({ userId }),
   ]);
   // Then delete the user
   await UserModel.deleteOne({ id: userId });
@@ -333,6 +337,8 @@ export async function getSIPs(userId: string): Promise<SIP[]> {
     isActive: s.isActive,
     lastExecuted: s.lastExecuted,
     nextExecutionDate: s.nextExecutionDate,
+    currentNetValue: s.currentNetValue,
+    adjustments: s.adjustments || [],
     userId: s.userId,
     createdAt: s.createdAt.toISOString(),
   }));
@@ -357,6 +363,8 @@ export async function getSIPById(
     isActive: sip.isActive,
     lastExecuted: sip.lastExecuted,
     nextExecutionDate: sip.nextExecutionDate,
+    currentNetValue: sip.currentNetValue,
+    adjustments: sip.adjustments || [],
     userId: sip.userId,
     createdAt: sip.createdAt.toISOString(),
   };
@@ -378,6 +386,8 @@ export async function saveSIP(userId: string, sip: SIP): Promise<void> {
       isActive: sip.isActive,
       lastExecuted: sip.lastExecuted,
       nextExecutionDate: sip.nextExecutionDate,
+      currentNetValue: sip.currentNetValue,
+      adjustments: sip.adjustments || [],
       userId,
       createdAt: new Date(sip.createdAt),
     },
@@ -573,4 +583,93 @@ export async function deleteWishlist(userId: string, id: string): Promise<void> 
 export async function deleteAllWishlist(userId: string): Promise<void> {
   await ensureConnection();
   await WishlistModel.deleteMany({ userId });
+}
+
+// Stock operations
+export async function getStocks(userId: string): Promise<Stock[]> {
+  await ensureConnection();
+  const stocks = await StockModel.find({ userId }).sort({ purchaseDate: -1 }).lean();
+  return stocks.map((s) => ({
+    id: s.id,
+    symbol: s.symbol,
+    name: s.name,
+    quantity: s.quantity,
+    purchasePrice: s.purchasePrice,
+    currentPrice: s.currentPrice,
+    purchaseDate: s.purchaseDate,
+    broker: s.broker,
+    category: s.category,
+    notes: s.notes,
+    userId: s.userId,
+    createdAt: s.createdAt.toISOString(),
+    updatedAt: s.updatedAt.toISOString(),
+  }));
+}
+
+export async function getStockById(userId: string, id: string): Promise<Stock | null> {
+  await ensureConnection();
+  const stock = await StockModel.findOne({ id, userId }).lean();
+  if (!stock) return null;
+  return {
+    id: stock.id,
+    symbol: stock.symbol,
+    name: stock.name,
+    quantity: stock.quantity,
+    purchasePrice: stock.purchasePrice,
+    currentPrice: stock.currentPrice,
+    purchaseDate: stock.purchaseDate,
+    broker: stock.broker,
+    category: stock.category,
+    notes: stock.notes,
+    userId: stock.userId,
+    createdAt: stock.createdAt.toISOString(),
+    updatedAt: stock.updatedAt.toISOString(),
+  };
+}
+
+export async function saveStock(userId: string, stock: Stock): Promise<void> {
+  await ensureConnection();
+  await StockModel.findOneAndUpdate(
+    { id: stock.id, userId },
+    {
+      id: stock.id,
+      symbol: stock.symbol,
+      name: stock.name,
+      quantity: stock.quantity,
+      purchasePrice: stock.purchasePrice,
+      currentPrice: stock.currentPrice,
+      purchaseDate: stock.purchaseDate,
+      broker: stock.broker,
+      category: stock.category,
+      notes: stock.notes,
+      userId,
+      createdAt: new Date(stock.createdAt),
+      updatedAt: new Date(stock.updatedAt),
+    },
+    { upsert: true, new: true }
+  );
+}
+
+export async function updateStock(userId: string, id: string, updates: Partial<Stock>): Promise<void> {
+  await ensureConnection();
+  const result = await StockModel.updateOne(
+    { id, userId },
+    { $set: { ...updates, updatedAt: new Date() } }
+  );
+  if (result.matchedCount === 0) {
+    throw new Error("Stock not found");
+  }
+}
+
+export async function deleteStock(userId: string, id: string): Promise<void> {
+  await ensureConnection();
+  const result = await StockModel.deleteOne({ id, userId });
+  if (result.deletedCount === 0) {
+    throw new Error("Stock not found");
+  }
+}
+
+export async function deleteAllStocks(userId: string): Promise<void> {
+  await ensureConnection();
+  await StockModel.deleteMany({ userId });
 }

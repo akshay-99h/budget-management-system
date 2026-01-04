@@ -1,13 +1,65 @@
 import nodemailer from "nodemailer"
 import { logger } from "@/lib/utils/logger"
+import { google } from "googleapis"
 
-// Create reusable transporter
-const createTransporter = () => {
+// Create OAuth2 client for Gmail (if OAuth credentials are provided)
+const createOAuth2Client = () => {
+  if (
+    !process.env.GMAIL_CLIENT_ID ||
+    !process.env.GMAIL_CLIENT_SECRET ||
+    !process.env.GMAIL_REFRESH_TOKEN
+  ) {
+    return null
+  }
+
+  const OAuth2 = google.auth.OAuth2
+  const oauth2Client = new OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    "https://developers.google.com/oauthplayground" // Redirect URL
+  )
+
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+  })
+
+  return oauth2Client
+}
+
+// Create reusable transporter (supports both OAuth2 and App Password)
+const createTransporter = async () => {
+  // Method 1: Try OAuth2 first (more secure)
+  const oauth2Client = createOAuth2Client()
+  if (oauth2Client && process.env.SMTP_USER) {
+    try {
+      const accessToken = await oauth2Client.getAccessToken()
+
+      if (accessToken.token) {
+        logger.info("Using Gmail OAuth2 authentication")
+        return nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            type: "OAuth2",
+            user: process.env.SMTP_USER,
+            clientId: process.env.GMAIL_CLIENT_ID,
+            clientSecret: process.env.GMAIL_CLIENT_SECRET,
+            refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+            accessToken: accessToken.token,
+          },
+        })
+      }
+    } catch (error) {
+      logger.warn("OAuth2 authentication failed, falling back to app password", error)
+    }
+  }
+
+  // Method 2: Fallback to App Password (legacy method)
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     logger.warn("SMTP configuration is missing. Email functionality will be disabled.")
     return null
   }
 
+  logger.info("Using SMTP app password authentication")
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || "smtp.gmail.com",
     port: parseInt(process.env.SMTP_PORT || "587"),
@@ -19,7 +71,14 @@ const createTransporter = () => {
   })
 }
 
-const transporter = createTransporter()
+// Initialize transporter (async)
+let transporter: Awaited<ReturnType<typeof createTransporter>> = null
+const initTransporter = async () => {
+  if (!transporter) {
+    transporter = await createTransporter()
+  }
+  return transporter
+}
 
 export async function sendLoanReminderToBorrower(
   borrowerEmail: string,
@@ -29,13 +88,15 @@ export async function sendLoanReminderToBorrower(
   dueDate: string,
   loanId: string
 ) {
-  if (!transporter) {
+  const emailTransporter = await initTransporter()
+
+  if (!emailTransporter) {
     logger.warn("Email transporter not configured. Email not sent.")
     return { success: false, error: "Email service not configured" }
   }
 
   try {
-    const info = await transporter.sendMail({
+    const info = await emailTransporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: borrowerEmail,
       subject: `Loan Reminder: ₹${loanAmount.toLocaleString("en-IN")} due on ${new Date(dueDate).toLocaleDateString("en-IN")}`,
@@ -113,13 +174,15 @@ export async function sendLoanReminderToLender(
   dueDate: string,
   loanId: string
 ) {
-  if (!transporter) {
+  const emailTransporter = await initTransporter()
+
+  if (!emailTransporter) {
     logger.warn("Email transporter not configured. Email not sent.")
     return { success: false, error: "Email service not configured" }
   }
 
   try {
-    const info = await transporter.sendMail({
+    const info = await emailTransporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: lenderEmail,
       subject: `Loan Reminder: ₹${loanAmount.toLocaleString("en-IN")} from ${borrowerName} due on ${new Date(dueDate).toLocaleDateString("en-IN")}`,

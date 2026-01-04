@@ -62,13 +62,20 @@ interface WidgetProps {
 
 // 1. SIP Investments Widget
 export function SIPInvestmentsWidget({ sips }: Pick<WidgetProps, "sips">) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time to start of day for accurate comparison
   const activeSIPs = sips.filter((s) => s.isActive)
   const monthlyCommitment = activeSIPs
     .filter((s) => s.frequency === "monthly")
     .reduce((sum, s) => sum + s.amount, 0)
 
   const nextSIP = activeSIPs
-    .filter((s) => s.nextExecutionDate)
+    .filter((s) => {
+      if (!s.nextExecutionDate) return false
+      const executionDate = new Date(s.nextExecutionDate)
+      executionDate.setHours(0, 0, 0, 0)
+      return executionDate >= today
+    })
     .sort((a, b) => new Date(a.nextExecutionDate!).getTime() - new Date(b.nextExecutionDate!).getTime())[0]
 
   return (
@@ -300,11 +307,18 @@ export function TopCategoriesWidget({ spendingByCategory }: Pick<WidgetProps, "s
 
 // 5. Cash Flow Timeline Widget
 export function CashFlowWidget({ loans, sips }: Pick<WidgetProps, "loans" | "sips">) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time to start of day for accurate comparison
   const upcomingEvents: Array<{ date: Date; type: string; description: string; amount: number }> = []
 
   // Add upcoming loan payments
   loans
-    .filter((l) => l.status !== "paid" && l.dueDate)
+    .filter((l) => {
+      if (l.status === "paid" || !l.dueDate) return false
+      const dueDate = new Date(l.dueDate)
+      dueDate.setHours(0, 0, 0, 0)
+      return dueDate >= today
+    })
     .forEach((loan) => {
       upcomingEvents.push({
         date: new Date(loan.dueDate!),
@@ -316,7 +330,12 @@ export function CashFlowWidget({ loans, sips }: Pick<WidgetProps, "loans" | "sip
 
   // Add upcoming SIP executions
   sips
-    .filter((s) => s.isActive && s.nextExecutionDate)
+    .filter((s) => {
+      if (!s.isActive || !s.nextExecutionDate) return false
+      const executionDate = new Date(s.nextExecutionDate)
+      executionDate.setHours(0, 0, 0, 0)
+      return executionDate >= today
+    })
     .forEach((sip) => {
       upcomingEvents.push({
         date: new Date(sip.nextExecutionDate!),
