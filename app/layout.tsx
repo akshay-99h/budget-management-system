@@ -9,13 +9,14 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Budget 2025 - Personal Budget Manager",
-  description: "Manage your personal budget, track expenses, and monitor loans",
+  description: "Manage your personal budget, track expenses, monitor loans, SIP investments, stocks, and bank accounts",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Budget 2025",
   },
+  keywords: ["budget", "finance", "expense tracker", "SIP", "investments", "loans", "bank accounts"],
   icons: {
     icon: [
       { url: "/web-app-manifest-192x192.png", sizes: "192x192", type: "image/png" },
@@ -32,7 +33,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#000000",
+  themeColor: "#3b82f6",
+  viewportFit: "cover",
 }
 
 export default function RootLayout({

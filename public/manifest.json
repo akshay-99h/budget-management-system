@@ -1,7 +1,7 @@
 {
   "name": "Budget 2025 - Personal Budget Manager",
   "short_name": "Budget 2025",
-  "description": "Manage your personal budget, track expenses, and monitor loans",
+  "description": "Manage your personal budget, track expenses, monitor loans, SIP investments, stocks, and bank accounts",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
@@ -48,6 +48,20 @@
       "short_name": "Dashboard",
       "description": "View your financial overview",
       "url": "/dashboard",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "SIP Investments",
+      "short_name": "SIP",
+      "description": "Manage your systematic investment plans",
+      "url": "/sip",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bank Accounts",
+      "short_name": "Accounts",
+      "description": "View and manage bank accounts",
+      "url": "/bank-accounts",
       "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
     }
   ]
