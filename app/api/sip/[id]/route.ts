@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth-helpers"
 import { updateSIP, deleteSIP, getSIPById } from "@/lib/data/storage"
 import { sipSchema } from "@/lib/validations"
 import { calculateNextExecutionDate } from "@/lib/utils/sip"
+import { v4 as uuidv4 } from "uuid"
 
 export async function PUT(
   request: Request,
@@ -29,9 +30,19 @@ export async function PUT(
       )
     }
 
+    // Ensure all adjustments have IDs
+    const adjustments = validated.adjustments
+      ? validated.adjustments.map((adj) => ({
+          ...adj,
+          id: adj.id || uuidv4(),
+        }))
+      : undefined
+
     const updates = {
       ...validated,
       nextExecutionDate,
+      ...(adjustments !== undefined && { adjustments }),
+      ...(validated.currentNetValue !== undefined && { currentNetValue: validated.currentNetValue }),
     }
 
     await updateSIP(user.id, id, updates)
