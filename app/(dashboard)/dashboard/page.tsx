@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Transaction, Budget, Loan } from "@/lib/types"
+import { Transaction, Budget, Loan, BankAccount, Wishlist, SIP } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -24,7 +24,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, HandCoins, ArrowUpRight, Sparkles, Target } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, HandCoins, ArrowUpRight, Sparkles, Target, Building2, Heart } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { isPWA } from "@/lib/pwa-utils"
@@ -32,6 +32,22 @@ import Link from "next/link"
 import Joyride, { CallBackProps, STATUS } from "react-joyride"
 import { useTour } from "@/contexts/TourContext"
 import { dashboardTour, getDesktopStyles, getMobileStyles } from "@/lib/tours"
+import { useWidgetPreferences } from "@/hooks/use-widget-preferences"
+import { WidgetSettingsDialog } from "@/components/dashboard/widget-settings-dialog"
+import {
+  SIPInvestmentsWidget,
+  FinancialHealthWidget,
+  SpendingTrendsWidget,
+  TopCategoriesWidget,
+  CashFlowWidget,
+  SavingsRateWidget,
+  AccountDistributionWidget,
+  WishlistProgressWidget,
+  MonthComparisonWidget,
+  BudgetAlertsWidget,
+  QuickInsightsWidget,
+  NetWorthWidget,
+} from "@/components/dashboard/widgets"
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
 
@@ -39,9 +55,13 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loans, setLoans] = useState<Loan[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [wishlistItems, setWishlistItems] = useState<Wishlist[]>([])
+  const [sips, setSips] = useState<SIP[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileApp, setIsMobileApp] = useState(false)
   const { runTour, stopTour, startTour, isTourCompleted } = useTour()
+  const { preferences, isLoaded: prefsLoaded } = useWidgetPreferences()
 
   const currentMonth = format(new Date(), "yyyy-MM")
   const monthStart = startOfMonth(new Date())
@@ -72,23 +92,32 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [transactionsRes, budgetsRes, loansRes] = await Promise.all([
+        const [transactionsRes, budgetsRes, loansRes, bankAccountsRes, wishlistRes, sipsRes] = await Promise.all([
           fetch("/api/transactions"),
           fetch("/api/budgets"),
           fetch("/api/loans"),
+          fetch("/api/bank-accounts"),
+          fetch("/api/wishlist"),
+          fetch("/api/sip"),
         ])
 
-        if (!transactionsRes.ok || !budgetsRes.ok || !loansRes.ok) {
+        if (!transactionsRes.ok || !budgetsRes.ok || !loansRes.ok || !bankAccountsRes.ok || !wishlistRes.ok || !sipsRes.ok) {
           throw new Error("Failed to fetch data")
         }
 
         const transactionsData = await transactionsRes.json()
         const budgetsData = await budgetsRes.json()
         const loansData = await loansRes.json()
+        const bankAccountsData = await bankAccountsRes.json()
+        const wishlistData = await wishlistRes.json()
+        const sipsData = await sipsRes.json()
 
         setTransactions(transactionsData)
         setBudgets(budgetsData)
         setLoans(loansData)
+        setBankAccounts(bankAccountsData)
+        setWishlistItems(wishlistData)
+        setSips(sipsData)
       } catch (error) {
         console.error("Error fetching data:", error)
       } finally {
@@ -112,6 +141,23 @@ export default function DashboardPage() {
       const totalPaid = l.payments.reduce((pSum, p) => pSum + p.amount, 0)
       return sum + (l.amount - totalPaid)
     }, 0)
+
+  const totalBankBalance = bankAccounts.reduce((sum, account) => sum + account.balance, 0)
+
+  // Find wishlist budget (if exists)
+  const wishlistBudget = monthlyBudgets.find((b) =>
+    b.category.toLowerCase().includes("wishlist") ||
+    b.category.toLowerCase().includes("savings")
+  )
+  const wishlistBudgetAmount = wishlistBudget ? wishlistBudget.limit : 0
+  const wishlistBudgetSpent = wishlistBudget
+    ? (spendingByCategory[wishlistBudget.category] || 0)
+    : 0
+  const availableWishlistBudget = wishlistBudgetAmount - wishlistBudgetSpent
+
+  const affordableWishlistItems = wishlistItems.filter(
+    (item) => !item.isPurchased && item.estimatedPrice <= availableWishlistBudget
+  ).length
 
   const recentTransactions = transactions
     .filter((t) => {
@@ -140,8 +186,8 @@ export default function DashboardPage() {
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-6 w-96" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
@@ -180,6 +226,7 @@ export default function DashboardPage() {
               Welcome back! Here's your financial overview for {format(new Date(), "MMMM yyyy")}
             </p>
           </div>
+          {prefsLoaded && <WidgetSettingsDialog />}
         </div>
 
         {/* Quick Actions for Mobile App */}
@@ -201,7 +248,8 @@ export default function DashboardPage() {
         )}
 
         {/* Stats Cards */}
-        <div data-tour="stats-cards" className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div data-tour="stats-cards" className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {preferences.income && (
         <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
@@ -220,7 +268,9 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
+        {preferences.expenses && (
         <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">
@@ -239,10 +289,12 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
+        {preferences.netIncome && (
         <Card className={`border-2 hover:shadow-lg transition-shadow bg-linear-to-br ${
-          netIncome >= 0 
-            ? "from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10" 
+          netIncome >= 0
+            ? "from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10"
             : "from-orange-50 to-orange-100/50 dark:from-orange-950/20 dark:to-orange-900/10"
         }`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -278,7 +330,9 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        )}
 
+        {preferences.loans && (
         <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-950/20 dark:to-yellow-900/10">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
@@ -297,10 +351,109 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        )}
+
+        {preferences.bankAccounts && (
+        <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-400">
+              Bank Accounts
+            </CardTitle>
+            <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-indigo-700 dark:text-indigo-400">
+              {formatCurrency(totalBankBalance)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {bankAccounts.length} {bankAccounts.length === 1 ? "account" : "accounts"}
+            </p>
+          </CardContent>
+        </Card>
+        )}
+
+        {preferences.wishlist && (
+        <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-pink-50 to-pink-100/50 dark:from-pink-950/20 dark:to-pink-900/10">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-pink-700 dark:text-pink-400">
+              Wishlist Items
+            </CardTitle>
+            <div className="h-10 w-10 rounded-full bg-pink-500/20 flex items-center justify-center">
+              <Heart className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-pink-700 dark:text-pink-400">
+              {affordableWishlistItems}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {availableWishlistBudget > 0
+                ? `Affordable (₹${availableWishlistBudget.toLocaleString("en-IN")} budget)`
+                : "Set wishlist budget"}
+            </p>
+          </CardContent>
+        </Card>
+        )}
+
+        {/* New Widgets */}
+        {preferences.sipInvestments && <SIPInvestmentsWidget sips={sips} />}
+        {preferences.financialHealth && (
+          <FinancialHealthWidget
+            monthlyIncome={monthlyIncome}
+            monthlyExpenses={monthlyExpenses}
+            budgets={monthlyBudgets}
+            spendingByCategory={spendingByCategory}
+            loans={loans}
+            bankAccounts={bankAccounts}
+          />
+        )}
+        {preferences.savingsRate && (
+          <SavingsRateWidget monthlyIncome={monthlyIncome} monthlyExpenses={monthlyExpenses} />
+        )}
+        {preferences.netWorth && <NetWorthWidget bankAccounts={bankAccounts} loans={loans} />}
+      </div>
+
+      {/* Analysis & Planning Widgets */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {preferences.topCategories && <TopCategoriesWidget spendingByCategory={spendingByCategory} />}
+        {preferences.cashFlow && <CashFlowWidget loans={loans} sips={sips} />}
+        {preferences.wishlistProgress && (
+          <WishlistProgressWidget
+            wishlistItems={wishlistItems}
+            budgets={monthlyBudgets}
+            spendingByCategory={spendingByCategory}
+          />
+        )}
+        {preferences.monthComparison && (
+          <MonthComparisonWidget transactions={transactions} currentMonth={currentMonth} />
+        )}
+        {preferences.budgetAlerts && (
+          <BudgetAlertsWidget budgets={monthlyBudgets} spendingByCategory={spendingByCategory} />
+        )}
+        {preferences.accountDistribution && <AccountDistributionWidget bankAccounts={bankAccounts} />}
+      </div>
+
+      {/* Wide Widgets */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
+        {preferences.spendingTrends && <SpendingTrendsWidget transactions={transactions} />}
+        {preferences.quickInsights && (
+          <QuickInsightsWidget
+            transactions={transactions}
+            budgets={monthlyBudgets}
+            spendingByCategory={spendingByCategory}
+            loans={loans}
+            currentMonth={currentMonth}
+            monthlyIncome={monthlyIncome}
+            monthlyExpenses={monthlyExpenses}
+          />
+        )}
       </div>
 
       {/* Charts */}
       <div data-tour="charts" className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
+        {preferences.spendingByCategory && (
         <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -345,7 +498,9 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
+        {preferences.budgetPerformance && (
         <Card className="border-2 hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -386,9 +541,11 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Recent Transactions */}
+      {preferences.recentTransactions && (
       <Card data-tour="recent-transactions" className="border-2 hover:shadow-lg transition-shadow">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -453,6 +610,7 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   </>
   )
