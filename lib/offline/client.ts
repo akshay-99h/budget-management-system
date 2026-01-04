@@ -4,10 +4,11 @@
 import { dbManager } from "./db"
 import { syncManager } from "./sync"
 import { Transaction, Budget, Loan } from "@/lib/types"
+import { logger } from "@/lib/utils/logger"
 
 // Initialize on client side
 if (typeof window !== "undefined") {
-  dbManager.init().catch(console.error)
+  dbManager.init().catch((error) => logger.error("Failed to initialize offline storage", error))
 }
 
 export class OfflineStorage {
@@ -23,41 +24,49 @@ export class OfflineStorage {
     await dbManager.save("transaction", this.userId, transactionWithUserId)
     // Try to sync immediately if online
     if (syncManager.getOnlineStatus()) {
-      syncManager.startSync(this.userId).catch(console.error)
+      syncManager.startSync(this.userId).catch((error) => logger.silent.error("Sync failed", error))
     }
   }
 
   async getTransactions(): Promise<Transaction[]> {
     // First try to get from IndexedDB
     const offline = await dbManager.getAll<Transaction>("transaction", this.userId)
-    
+
     // If online, also fetch from server and merge
     if (syncManager.getOnlineStatus()) {
       try {
         const response = await fetch("/api/transactions")
         if (response.ok) {
           const server = await response.json()
-          // Merge and deduplicate by ID
+          // Merge and deduplicate by ID using timestamps
           const merged = new Map<string, Transaction>()
-          
-          // Add offline records first (they may be newer)
+
+          // Add offline records first
           offline.forEach((t) => merged.set(t.id, t))
-          
-          // Add server records, keeping offline if version is newer
+
+          // Add server records, using timestamp-based conflict resolution
           server.forEach((t: Transaction) => {
             const existing = merged.get(t.id)
             if (!existing) {
+              // Record only exists on server
               merged.set(t.id, t)
+            } else {
+              // Record exists in both - use the newer one based on createdAt
+              const serverTime = new Date(t.createdAt).getTime()
+              const offlineTime = new Date(existing.createdAt).getTime()
+              if (serverTime > offlineTime) {
+                merged.set(t.id, t)
+              }
             }
           })
-          
+
           return Array.from(merged.values())
         }
       } catch (error) {
-        console.error("Failed to fetch from server:", error)
+        logger.silent.error("Failed to fetch from server", error)
       }
     }
-    
+
     return offline
   }
 
@@ -67,9 +76,9 @@ export class OfflineStorage {
     
     const updated = { ...existing.data, ...updates }
     await dbManager.save("transaction", this.userId, updated)
-    
+
     if (syncManager.getOnlineStatus()) {
-      syncManager.startSync().catch(console.error)
+      syncManager.startSync().catch((error) => logger.silent.error("Sync failed", error))
     }
   }
 
@@ -81,7 +90,7 @@ export class OfflineStorage {
       try {
         await fetch(`/api/transactions/${id}`, { method: "DELETE" })
       } catch (error) {
-        console.error("Failed to delete on server:", error)
+        logger.silent.error("Failed to delete on server", error)
       }
     }
   }
@@ -91,13 +100,13 @@ export class OfflineStorage {
     const budgetWithUserId = { ...budget, userId: this.userId }
     await dbManager.save("budget", this.userId, budgetWithUserId)
     if (syncManager.getOnlineStatus()) {
-      syncManager.startSync(this.userId).catch(console.error)
+      syncManager.startSync(this.userId).catch((error) => logger.silent.error("Sync failed", error))
     }
   }
 
   async getBudgets(): Promise<Budget[]> {
     const offline = await dbManager.getAll<Budget>("budget", this.userId)
-    
+
     if (syncManager.getOnlineStatus()) {
       try {
         const response = await fetch("/api/budgets")
@@ -111,10 +120,10 @@ export class OfflineStorage {
           return Array.from(merged.values())
         }
       } catch (error) {
-        console.error("Failed to fetch budgets from server:", error)
+        logger.silent.error("Failed to fetch budgets from server", error)
       }
     }
-    
+
     return offline
   }
 
@@ -124,7 +133,7 @@ export class OfflineStorage {
       try {
         await fetch(`/api/budgets/${id}`, { method: "DELETE" })
       } catch (error) {
-        console.error("Failed to delete budget on server:", error)
+        logger.silent.error("Failed to delete budget on server", error)
       }
     }
   }
@@ -134,13 +143,13 @@ export class OfflineStorage {
     const loanWithUserId = { ...loan, userId: this.userId }
     await dbManager.save("loan", this.userId, loanWithUserId)
     if (syncManager.getOnlineStatus()) {
-      syncManager.startSync(this.userId).catch(console.error)
+      syncManager.startSync(this.userId).catch((error) => logger.silent.error("Sync failed", error))
     }
   }
 
   async getLoans(): Promise<Loan[]> {
     const offline = await dbManager.getAll<Loan>("loan", this.userId)
-    
+
     if (syncManager.getOnlineStatus()) {
       try {
         const response = await fetch("/api/loans")
@@ -154,22 +163,22 @@ export class OfflineStorage {
           return Array.from(merged.values())
         }
       } catch (error) {
-        console.error("Failed to fetch loans from server:", error)
+        logger.silent.error("Failed to fetch loans from server", error)
       }
     }
-    
+
     return offline
   }
 
   async updateLoan(id: string, updates: Partial<Loan>): Promise<void> {
     const existing = await dbManager.get("loan", id)
     if (!existing) throw new Error("Loan not found")
-    
+
     const updated = { ...existing.data, ...updates }
     await dbManager.save("loan", this.userId, updated)
-    
+
     if (syncManager.getOnlineStatus()) {
-      syncManager.startSync().catch(console.error)
+      syncManager.startSync().catch((error) => logger.silent.error("Sync failed", error))
     }
   }
 
@@ -179,7 +188,7 @@ export class OfflineStorage {
       try {
         await fetch(`/api/loans/${id}`, { method: "DELETE" })
       } catch (error) {
-        console.error("Failed to delete loan on server:", error)
+        logger.silent.error("Failed to delete loan on server", error)
       }
     }
   }

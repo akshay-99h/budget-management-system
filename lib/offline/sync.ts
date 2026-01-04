@@ -1,5 +1,6 @@
 // Sync manager for handling online/offline sync with chunking
 import { dbManager } from "./db"
+import { logger } from "@/lib/utils/logger"
 
 const SYNC_CHUNK_SIZE = 10 // Number of records to sync at once
 const SYNC_DELAY = 1000 // Delay between chunks (ms)
@@ -12,11 +13,14 @@ export interface SyncResult {
 }
 
 class SyncManager {
-  private isOnline: boolean = navigator.onLine
+  private isOnline: boolean = typeof window !== "undefined" ? navigator.onLine : false
   private isSyncing: boolean = false
   private syncListeners: Set<(syncing: boolean) => void> = new Set()
 
   constructor() {
+    // Only initialize on client side
+    if (typeof window === "undefined") return
+
     // Listen for online/offline events
     window.addEventListener("online", () => {
       this.isOnline = true
@@ -27,7 +31,7 @@ class SyncManager {
     })
 
     // Initialize IndexedDB
-    dbManager.init().catch(console.error)
+    dbManager.init().catch((error) => logger.error("Failed to initialize IndexedDB", error))
 
     // Start sync if online
     if (this.isOnline) {
