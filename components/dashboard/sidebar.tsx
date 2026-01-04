@@ -17,6 +17,8 @@ import {
   Sparkles,
   Building2,
   Heart,
+  LineChart,
+  Activity,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -46,6 +48,13 @@ const navItems = [
       { href: "/budgets", label: "Budgets", icon: Target, badge: null },
       { href: "/loans", label: "Loans", icon: HandCoins, badge: null },
       { href: "/bank-accounts", label: "Accounts", icon: Building2, badge: null },
+    ],
+  },
+  {
+    section: "Investments",
+    items: [
+      { href: "/sip", label: "SIP", icon: Activity, badge: null },
+      { href: "/stocks", label: "Stocks", icon: LineChart, badge: null },
     ],
   },
   {
