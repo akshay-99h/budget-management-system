@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth-helpers"
-import { getTransactions, getBudgets, getLoans } from "@/lib/data/storage"
+import { getTransactions, getBudgets, getLoans, getSIPs } from "@/lib/data/storage"
 
 export async function GET(request: Request) {
   try {
@@ -20,6 +20,10 @@ export async function GET(request: Request) {
 
     if (type === "all" || type === "loans") {
       data.loans = await getLoans(user.id)
+    }
+
+    if (type === "all" || type === "sips") {
+      data.sips = await getSIPs(user.id)
     }
 
     return NextResponse.json(data)

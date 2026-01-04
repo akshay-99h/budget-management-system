@@ -8,6 +8,7 @@ import {
   deleteAllTransactions,
   deleteAllBudgets,
   deleteAllLoans,
+  deleteAllSIPs,
   deleteUser
 } from "@/lib/data/storage"
 
@@ -49,6 +50,7 @@ export async function DELETE(request: Request) {
         deleteAllTransactions(user.id),
         deleteAllBudgets(user.id),
         deleteAllLoans(user.id),
+        deleteAllSIPs(user.id),
       ])
 
       return NextResponse.json({

@@ -15,7 +15,8 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get("authorization")
     const secretToken = process.env.CRON_SECRET_TOKEN
 
-    if (secretToken && authHeader !== `Bearer ${secretToken}`) {
+    // Require authentication token - fail if not present or incorrect
+    if (!secretToken || authHeader !== `Bearer ${secretToken}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -87,7 +88,8 @@ export async function GET(request: Request) {
       details: remindersSent,
     })
   } catch (error: any) {
-    console.error("Error sending loan reminders:", error)
+    const { logger } = await import("@/lib/utils/logger")
+    logger.error("Error sending loan reminders", error)
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }
@@ -98,8 +100,8 @@ export async function GET(request: Request) {
 async function getAllActiveLoans() {
   // This is a helper function to get all loans from all users
   // In a production system, you might want to optimize this
-  const { UserModel } = await import("@/lib/models/User")
-  const { LoanModel } = await import("@/lib/models/Loan")
+  const UserModel = (await import("@/lib/models/User")).default
+  const LoanModel = (await import("@/lib/models/Loan")).default
   const connectDB = (await import("@/lib/db/mongodb")).default
 
   await connectDB()
