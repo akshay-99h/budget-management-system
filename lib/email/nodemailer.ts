@@ -1,9 +1,10 @@
 import nodemailer from "nodemailer"
+import { logger } from "@/lib/utils/logger"
 
 // Create reusable transporter
 const createTransporter = () => {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn("SMTP configuration is missing. Email functionality will be disabled.")
+    logger.warn("SMTP configuration is missing. Email functionality will be disabled.")
     return null
   }
 
@@ -29,7 +30,7 @@ export async function sendLoanReminderToBorrower(
   loanId: string
 ) {
   if (!transporter) {
-    console.warn("Email transporter not configured. Email not sent.")
+    logger.warn("Email transporter not configured. Email not sent.")
     return { success: false, error: "Email service not configured" }
   }
 
@@ -96,10 +97,10 @@ export async function sendLoanReminderToBorrower(
       `,
     })
 
-    console.log("Email sent successfully:", info.messageId)
+    logger.info("Email sent successfully to borrower", info.messageId)
     return { success: true, messageId: info.messageId }
   } catch (error: any) {
-    console.error("Error sending email:", error)
+    logger.error("Error sending email to borrower", error)
     return { success: false, error: error.message }
   }
 }
@@ -113,7 +114,7 @@ export async function sendLoanReminderToLender(
   loanId: string
 ) {
   if (!transporter) {
-    console.warn("Email transporter not configured. Email not sent.")
+    logger.warn("Email transporter not configured. Email not sent.")
     return { success: false, error: "Email service not configured" }
   }
 
@@ -180,10 +181,10 @@ export async function sendLoanReminderToLender(
       `,
     })
 
-    console.log("Email sent successfully:", info.messageId)
+    logger.info("Email sent successfully to lender", info.messageId)
     return { success: true, messageId: info.messageId }
   } catch (error: any) {
-    console.error("Error sending email:", error)
+    logger.error("Error sending email to lender", error)
     return { success: false, error: error.message }
   }
 }
