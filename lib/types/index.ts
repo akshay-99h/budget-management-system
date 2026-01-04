@@ -67,3 +67,30 @@ export type Category = {
   icon?: string
 }
 
+export type BankAccount = {
+  id: string
+  name: string
+  accountNumber?: string
+  accountType: "checking" | "savings" | "credit" | "cash"
+  balance: number
+  currency: string
+  isDefault: boolean
+  userId: string
+  createdAt: string
+}
+
+export type Wishlist = {
+  id: string
+  itemName: string
+  description?: string
+  estimatedPrice: number
+  priority: "low" | "medium" | "high"
+  category?: string
+  link?: string
+  isPurchased: boolean
+  purchasedDate?: string
+  actualPrice?: number
+  userId: string
+  createdAt: string
+}
+

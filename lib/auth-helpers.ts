@@ -1,11 +1,12 @@
 import { auth } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 
 export async function getCurrentUser() {
   try {
     const session = await auth();
     return session?.user;
   } catch (error) {
-    console.error("Error getting current user:", error);
+    logger.error("Error getting current user", error);
     return null;
   }
 }
@@ -18,7 +19,7 @@ export async function requireAuth() {
     }
     return user;
   } catch (error) {
-    console.error("Auth requirement error:", error);
+    logger.error("Auth requirement error", error);
     throw error;
   }
 }

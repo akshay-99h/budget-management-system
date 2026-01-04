@@ -3,14 +3,18 @@ import UserModel from "@/lib/models/User";
 import TransactionModel from "@/lib/models/Transaction";
 import BudgetModel from "@/lib/models/Budget";
 import LoanModel from "@/lib/models/Loan";
-import { Transaction, Budget, Loan, User } from "@/lib/types";
+import SIPModel from "@/lib/models/SIP";
+import BankAccountModel from "@/lib/models/BankAccount";
+import WishlistModel from "@/lib/models/Wishlist";
+import { Transaction, Budget, Loan, User, SIP, BankAccount, Wishlist } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 // Ensure database connection
 async function ensureConnection() {
   try {
     await connectDB();
   } catch (error) {
-    console.error("Database connection error:", error);
+    logger.error("Database connection error", error);
     throw new Error(
       "Database connection failed. Please check your MongoDB connection string."
     );
@@ -129,6 +133,7 @@ export async function getLoans(userId: string): Promise<Loan[]> {
   return loans.map((l) => ({
     id: l.id,
     borrowerName: l.borrowerName,
+    borrowerEmail: l.borrowerEmail,
     amount: l.amount,
     date: l.date,
     dueDate: l.dueDate,
@@ -136,6 +141,8 @@ export async function getLoans(userId: string): Promise<Loan[]> {
     payments: l.payments,
     notes: l.notes,
     userId: l.userId,
+    reminderEnabled: l.reminderEnabled ?? true,
+    lastReminderSent: l.lastReminderSent,
   }));
 }
 
@@ -147,6 +154,7 @@ export async function saveLoan(userId: string, loan: Loan): Promise<void> {
     {
       id: loan.id,
       borrowerName: loan.borrowerName,
+      borrowerEmail: loan.borrowerEmail,
       amount: loan.amount,
       date: loan.date,
       dueDate: loan.dueDate,
@@ -154,6 +162,8 @@ export async function saveLoan(userId: string, loan: Loan): Promise<void> {
       payments: loan.payments,
       notes: loan.notes,
       userId,
+      reminderEnabled: loan.reminderEnabled ?? true,
+      lastReminderSent: loan.lastReminderSent,
     },
     { upsert: true, new: true }
   );
@@ -297,7 +307,270 @@ export async function deleteUser(userId: string): Promise<void> {
     TransactionModel.deleteMany({ userId }),
     BudgetModel.deleteMany({ userId }),
     LoanModel.deleteMany({ userId }),
+    SIPModel.deleteMany({ userId }),
+    BankAccountModel.deleteMany({ userId }),
+    WishlistModel.deleteMany({ userId }),
   ]);
   // Then delete the user
   await UserModel.deleteOne({ id: userId });
+}
+
+// SIP operations
+export async function getSIPs(userId: string): Promise<SIP[]> {
+  await ensureConnection();
+  const sips = await SIPModel.find({ userId })
+    .sort({ createdAt: -1 })
+    .lean();
+  return sips.map((s) => ({
+    id: s.id,
+    name: s.name,
+    amount: s.amount,
+    frequency: s.frequency,
+    startDate: s.startDate,
+    endDate: s.endDate,
+    category: s.category,
+    description: s.description,
+    isActive: s.isActive,
+    lastExecuted: s.lastExecuted,
+    nextExecutionDate: s.nextExecutionDate,
+    userId: s.userId,
+    createdAt: s.createdAt.toISOString(),
+  }));
+}
+
+export async function getSIPById(
+  userId: string,
+  id: string
+): Promise<SIP | null> {
+  await ensureConnection();
+  const sip = await SIPModel.findOne({ id, userId }).lean();
+  if (!sip) return null;
+  return {
+    id: sip.id,
+    name: sip.name,
+    amount: sip.amount,
+    frequency: sip.frequency,
+    startDate: sip.startDate,
+    endDate: sip.endDate,
+    category: sip.category,
+    description: sip.description,
+    isActive: sip.isActive,
+    lastExecuted: sip.lastExecuted,
+    nextExecutionDate: sip.nextExecutionDate,
+    userId: sip.userId,
+    createdAt: sip.createdAt.toISOString(),
+  };
+}
+
+export async function saveSIP(userId: string, sip: SIP): Promise<void> {
+  await ensureConnection();
+  await SIPModel.findOneAndUpdate(
+    { id: sip.id, userId },
+    {
+      id: sip.id,
+      name: sip.name,
+      amount: sip.amount,
+      frequency: sip.frequency,
+      startDate: sip.startDate,
+      endDate: sip.endDate,
+      category: sip.category,
+      description: sip.description,
+      isActive: sip.isActive,
+      lastExecuted: sip.lastExecuted,
+      nextExecutionDate: sip.nextExecutionDate,
+      userId,
+      createdAt: new Date(sip.createdAt),
+    },
+    { upsert: true, new: true }
+  );
+}
+
+export async function updateSIP(
+  userId: string,
+  id: string,
+  updates: Partial<SIP>
+): Promise<void> {
+  await ensureConnection();
+  const result = await SIPModel.updateOne({ id, userId }, { $set: updates });
+  if (result.matchedCount === 0) {
+    throw new Error("SIP not found");
+  }
+}
+
+export async function deleteSIP(userId: string, id: string): Promise<void> {
+  await ensureConnection();
+  const result = await SIPModel.deleteOne({ id, userId });
+  if (result.deletedCount === 0) {
+    throw new Error("SIP not found");
+  }
+}
+
+export async function deleteAllSIPs(userId: string): Promise<void> {
+  await ensureConnection();
+  await SIPModel.deleteMany({ userId });
+}
+
+// Bank Account operations
+export async function getBankAccounts(userId: string): Promise<BankAccount[]> {
+  await ensureConnection();
+  const accounts = await BankAccountModel.find({ userId }).sort({ isDefault: -1, createdAt: -1 }).lean();
+  return accounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    accountNumber: a.accountNumber,
+    accountType: a.accountType,
+    balance: a.balance,
+    currency: a.currency,
+    isDefault: a.isDefault,
+    userId: a.userId,
+    createdAt: a.createdAt.toISOString(),
+  }));
+}
+
+export async function getBankAccountById(userId: string, id: string): Promise<BankAccount | null> {
+  await ensureConnection();
+  const account = await BankAccountModel.findOne({ id, userId }).lean();
+  if (!account) return null;
+  return {
+    id: account.id,
+    name: account.name,
+    accountNumber: account.accountNumber,
+    accountType: account.accountType,
+    balance: account.balance,
+    currency: account.currency,
+    isDefault: account.isDefault,
+    userId: account.userId,
+    createdAt: account.createdAt.toISOString(),
+  };
+}
+
+export async function saveBankAccount(userId: string, account: BankAccount): Promise<void> {
+  await ensureConnection();
+  // If this is set as default, unset all others
+  if (account.isDefault) {
+    await BankAccountModel.updateMany({ userId }, { $set: { isDefault: false } });
+  }
+  await BankAccountModel.findOneAndUpdate(
+    { id: account.id, userId },
+    {
+      id: account.id,
+      name: account.name,
+      accountNumber: account.accountNumber,
+      accountType: account.accountType,
+      balance: account.balance,
+      currency: account.currency,
+      isDefault: account.isDefault,
+      userId,
+      createdAt: new Date(account.createdAt),
+    },
+    { upsert: true, new: true }
+  );
+}
+
+export async function updateBankAccount(userId: string, id: string, updates: Partial<BankAccount>): Promise<void> {
+  await ensureConnection();
+  // If setting as default, unset all others first
+  if (updates.isDefault === true) {
+    await BankAccountModel.updateMany({ userId }, { $set: { isDefault: false } });
+  }
+  const result = await BankAccountModel.updateOne({ id, userId }, { $set: updates });
+  if (result.matchedCount === 0) {
+    throw new Error("Bank account not found");
+  }
+}
+
+export async function deleteBankAccount(userId: string, id: string): Promise<void> {
+  await ensureConnection();
+  const result = await BankAccountModel.deleteOne({ id, userId });
+  if (result.deletedCount === 0) {
+    throw new Error("Bank account not found");
+  }
+}
+
+export async function deleteAllBankAccounts(userId: string): Promise<void> {
+  await ensureConnection();
+  await BankAccountModel.deleteMany({ userId });
+}
+
+// Wishlist operations
+export async function getWishlistItems(userId: string): Promise<Wishlist[]> {
+  await ensureConnection();
+  const items = await WishlistModel.find({ userId }).sort({ priority: 1, createdAt: -1 }).lean();
+  return items.map((w) => ({
+    id: w.id,
+    itemName: w.itemName,
+    description: w.description,
+    estimatedPrice: w.estimatedPrice,
+    priority: w.priority,
+    category: w.category,
+    link: w.link,
+    isPurchased: w.isPurchased,
+    purchasedDate: w.purchasedDate,
+    actualPrice: w.actualPrice,
+    userId: w.userId,
+    createdAt: w.createdAt.toISOString(),
+  }));
+}
+
+export async function getWishlistById(userId: string, id: string): Promise<Wishlist | null> {
+  await ensureConnection();
+  const item = await WishlistModel.findOne({ id, userId }).lean();
+  if (!item) return null;
+  return {
+    id: item.id,
+    itemName: item.itemName,
+    description: item.description,
+    estimatedPrice: item.estimatedPrice,
+    priority: item.priority,
+    category: item.category,
+    link: item.link,
+    isPurchased: item.isPurchased,
+    purchasedDate: item.purchasedDate,
+    actualPrice: item.actualPrice,
+    userId: item.userId,
+    createdAt: item.createdAt.toISOString(),
+  };
+}
+
+export async function saveWishlist(userId: string, item: Wishlist): Promise<void> {
+  await ensureConnection();
+  await WishlistModel.findOneAndUpdate(
+    { id: item.id, userId },
+    {
+      id: item.id,
+      itemName: item.itemName,
+      description: item.description,
+      estimatedPrice: item.estimatedPrice,
+      priority: item.priority,
+      category: item.category,
+      link: item.link,
+      isPurchased: item.isPurchased,
+      purchasedDate: item.purchasedDate,
+      actualPrice: item.actualPrice,
+      userId,
+      createdAt: new Date(item.createdAt),
+    },
+    { upsert: true, new: true }
+  );
+}
+
+export async function updateWishlist(userId: string, id: string, updates: Partial<Wishlist>): Promise<void> {
+  await ensureConnection();
+  const result = await WishlistModel.updateOne({ id, userId }, { $set: updates });
+  if (result.matchedCount === 0) {
+    throw new Error("Wishlist item not found");
+  }
+}
+
+export async function deleteWishlist(userId: string, id: string): Promise<void> {
+  await ensureConnection();
+  const result = await WishlistModel.deleteOne({ id, userId });
+  if (result.deletedCount === 0) {
+    throw new Error("Wishlist item not found");
+  }
+}
+
+export async function deleteAllWishlist(userId: string): Promise<void> {
+  await ensureConnection();
+  await WishlistModel.deleteMany({ userId });
 }

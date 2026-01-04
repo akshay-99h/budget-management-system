@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { logger } from "@/lib/utils/logger";
 
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/budget2025";
@@ -94,33 +95,32 @@ async function connectDB() {
 
     // Log the URI (without password) for debugging
     const safeUri = finalMongoUri.replace(/:([^:@]+)@/, ":****@");
-    console.log("🔗 Connecting to MongoDB:", safeUri);
-    console.log("📊 Database name:", dbName);
+    logger.info("Connecting to MongoDB", safeUri);
+    logger.info("Database name", dbName);
 
     cached.promise = mongoose
       .connect(finalMongoUri, opts)
       .then((mongoose) => {
-        console.log("✅ MongoDB connected successfully");
-        console.log(
-          "📊 Connected database:",
+        logger.info("MongoDB connected successfully")
+        logger.debug(
+          "Connected database",
           mongoose.connection.db?.databaseName
-        );
-        return mongoose;
+        )
+        return mongoose
       })
       .catch((error) => {
-        console.error("❌ MongoDB connection error:", error.message);
-        console.error("🔍 Full error:", error);
-        cached.promise = null;
-        throw error;
-      });
+        logger.error("MongoDB connection error", error)
+        cached.promise = null
+        throw error
+      })
   }
 
   try {
-    cached.conn = await cached.promise;
+    cached.conn = await cached.promise
   } catch (e) {
-    cached.promise = null;
-    console.error("❌ Failed to establish MongoDB connection:", e);
-    throw e;
+    cached.promise = null
+    logger.error("Failed to establish MongoDB connection", e)
+    throw e
   }
 
   return cached.conn;
