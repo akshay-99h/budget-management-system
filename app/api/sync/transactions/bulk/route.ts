@@ -4,6 +4,8 @@ import {
   saveTransaction,
   updateTransaction,
   getTransactions,
+  getBankAccountById,
+  updateBankAccount,
 } from "@/lib/data/storage"
 import { transactionSchema } from "@/lib/validations"
 import { Transaction } from "@/lib/types"
@@ -64,12 +66,22 @@ export async function POST(request: Request) {
               }
             } else {
               // Create new transaction
-              await saveTransaction(user.id, {
+              const newTransaction = {
                 id: record.id,
                 ...validated,
                 userId: user.id,
                 createdAt: record.createdAt || new Date().toISOString(),
-              })
+              }
+
+              await saveTransaction(user.id, newTransaction)
+
+              // Update bank account balance
+              const bankAccount = await getBankAccountById(user.id, validated.bankAccountId)
+              if (bankAccount) {
+                const balanceChange = validated.type === "income" ? validated.amount : -validated.amount
+                const newBalance = bankAccount.balance + balanceChange
+                await updateBankAccount(user.id, validated.bankAccountId, { balance: newBalance })
+              }
             }
 
             synced.push(record.id)

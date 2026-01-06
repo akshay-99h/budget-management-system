@@ -17,20 +17,37 @@ export function RegisterSW() {
         .then((registration) => {
           console.log("Service Worker registered:", registration.scope)
 
-          // Check for updates periodically
+          // Check for updates more frequently (every 5 minutes)
           setInterval(() => {
             registration.update()
-          }, 60 * 60 * 1000) // Check every hour
+          }, 5 * 60 * 1000) // Check every 5 minutes
+
+          // Also check on page visibility change
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+              registration.update()
+            }
+          })
 
           // Handle updates
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing
+            console.log("[App] New service worker found, installing...")
             if (newWorker) {
               newWorker.addEventListener("statechange", () => {
-                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                  // New service worker available, prompt user to refresh
-                  if (confirm("New version available! Reload to update?")) {
-                    window.location.reload()
+                console.log("[App] Service worker state:", newWorker.state)
+                if (newWorker.state === "installed") {
+                  if (navigator.serviceWorker.controller) {
+                    // New service worker available, prompt user to refresh
+                    console.log("[App] New version available")
+                    if (confirm("New version available! Reload to update?")) {
+                      // Send skip waiting message
+                      newWorker.postMessage({ type: "SKIP_WAITING" })
+                      window.location.reload()
+                    }
+                  } else {
+                    // First install
+                    console.log("[App] Service worker installed for the first time")
                   }
                 }
               })

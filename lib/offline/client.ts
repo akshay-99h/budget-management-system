@@ -20,11 +20,21 @@ export class OfflineStorage {
 
   // Transaction operations
   async saveTransaction(transaction: Transaction): Promise<void> {
-    const transactionWithUserId = { ...transaction, userId: this.userId }
-    await dbManager.save("transaction", this.userId, transactionWithUserId)
-    // Try to sync immediately if online
-    if (syncManager.getOnlineStatus()) {
-      syncManager.startSync(this.userId).catch((error) => logger.silent.error("Sync failed", error))
+    try {
+      console.log("[OfflineStorage] Saving transaction:", transaction)
+      const transactionWithUserId = { ...transaction, userId: this.userId }
+      await dbManager.save("transaction", this.userId, transactionWithUserId)
+      console.log("[OfflineStorage] Transaction saved successfully")
+      // Try to sync immediately if online
+      if (syncManager.getOnlineStatus()) {
+        syncManager.startSync(this.userId).catch((error) => {
+          console.error("[OfflineStorage] Sync failed:", error)
+          logger.silent.error("Sync failed", error)
+        })
+      }
+    } catch (error) {
+      console.error("[OfflineStorage] Failed to save transaction:", error)
+      throw error
     }
   }
 

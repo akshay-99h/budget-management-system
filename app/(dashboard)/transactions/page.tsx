@@ -105,6 +105,7 @@ export default function TransactionsPage() {
 
   const handleSubmit = async (data: TransactionInput) => {
     try {
+      console.log("[TransactionPage] Starting transaction submission:", data)
       const transaction: Transaction = {
         id: uuidv4(),
         ...data,
@@ -112,7 +113,9 @@ export default function TransactionsPage() {
         createdAt: new Date().toISOString(),
       }
 
+      console.log("[TransactionPage] Created transaction object:", transaction)
       await saveTransaction(transaction)
+      console.log("[TransactionPage] Transaction saved successfully")
 
       toast({
         title: "Success",
@@ -129,6 +132,11 @@ export default function TransactionsPage() {
         sync().catch(console.error)
       }
     } catch (error: any) {
+      console.error("[TransactionPage] Error saving transaction:", error)
+      console.error("[TransactionPage] Error stack:", error.stack)
+      console.error("[TransactionPage] Error name:", error.name)
+      console.error("[TransactionPage] Error message:", error.message)
+
       toast({
         title: "Error",
         description: error.message || "Failed to save transaction",
