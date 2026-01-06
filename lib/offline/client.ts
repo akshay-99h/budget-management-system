@@ -20,108 +20,121 @@ export class OfflineStorage {
 
   // Transaction operations
   async saveTransaction(transaction: Transaction): Promise<void> {
-    try {
-      console.log("[OfflineStorage] Saving transaction:", transaction)
-      const transactionWithUserId = { ...transaction, userId: this.userId }
-      await dbManager.save("transaction", this.userId, transactionWithUserId)
-      console.log("[OfflineStorage] Transaction saved to IndexedDB successfully")
-      // Try to sync immediately if online and wait for it to complete
-      if (syncManager.getOnlineStatus()) {
-        console.log("[OfflineStorage] Attempting immediate sync...")
-        try {
-          const syncResult = await syncManager.startSync(this.userId)
-          console.log("[OfflineStorage] Sync result:", syncResult)
-          if (!syncResult.success) {
-            console.error("[OfflineStorage] Sync completed with errors:", syncResult.errors)
-          }
-        } catch (error) {
-          console.error("[OfflineStorage] Sync failed with exception:", error)
-          // Don't throw - transaction is still saved offline
+    const transactionWithUserId = { ...transaction, userId: this.userId }
+
+    // If online, save directly to server
+    if (syncManager.getOnlineStatus()) {
+      console.log("[OfflineStorage] Online - saving directly to server")
+      try {
+        const response = await fetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(transactionWithUserId),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || "Failed to save transaction")
         }
-      } else {
-        console.log("[OfflineStorage] Offline mode - transaction saved locally only")
+
+        const savedTransaction = await response.json()
+        console.log("[OfflineStorage] Transaction saved to server successfully:", savedTransaction)
+
+        // Also save to IndexedDB for caching
+        await dbManager.save("transaction", this.userId, savedTransaction)
+        await dbManager.markSynced("transaction", savedTransaction.id)
+      } catch (error) {
+        console.error("[OfflineStorage] Failed to save to server, saving offline:", error)
+        // Fall back to offline mode
+        await dbManager.save("transaction", this.userId, transactionWithUserId)
+        throw error
       }
-    } catch (error) {
-      console.error("[OfflineStorage] Failed to save transaction:", error)
-      throw error
+    } else {
+      // Offline mode - save to IndexedDB for later sync
+      console.log("[OfflineStorage] Offline mode - saving to IndexedDB")
+      await dbManager.save("transaction", this.userId, transactionWithUserId)
+      console.log("[OfflineStorage] Transaction saved offline, will sync when online")
     }
   }
 
   async getTransactions(): Promise<Transaction[]> {
-    // First try to get from IndexedDB
-    console.log("[OfflineStorage] Fetching transactions from IndexedDB for user:", this.userId)
-    const offline = await dbManager.getAll<Transaction>("transaction", this.userId)
-    console.log("[OfflineStorage] Found", offline.length, "transactions in IndexedDB")
-
-    // If online, also fetch from server and merge
+    // If online, fetch from server (source of truth)
     if (syncManager.getOnlineStatus()) {
       try {
         console.log("[OfflineStorage] Online - fetching from server...")
         const response = await fetch("/api/transactions")
         if (response.ok) {
-          const server = await response.json()
-          console.log("[OfflineStorage] Found", server.length, "transactions on server")
-          // Merge and deduplicate by ID using timestamps
-          const merged = new Map<string, Transaction>()
-
-          // Add offline records first
-          offline.forEach((t) => merged.set(t.id, t))
-
-          // Add server records, using timestamp-based conflict resolution
-          server.forEach((t: Transaction) => {
-            const existing = merged.get(t.id)
-            if (!existing) {
-              // Record only exists on server
-              merged.set(t.id, t)
-            } else {
-              // Record exists in both - use the newer one based on createdAt
-              const serverTime = new Date(t.createdAt).getTime()
-              const offlineTime = new Date(existing.createdAt).getTime()
-              if (serverTime > offlineTime) {
-                merged.set(t.id, t)
-              }
-            }
-          })
-
-          const result = Array.from(merged.values())
-          console.log("[OfflineStorage] Returning", result.length, "merged transactions")
-          return result
+          const transactions = await response.json()
+          console.log("[OfflineStorage] Fetched", transactions.length, "transactions from server")
+          return transactions
         } else {
           console.error("[OfflineStorage] Server fetch failed with status:", response.status)
         }
       } catch (error) {
-        console.error("[OfflineStorage] Failed to fetch from server:", error)
-        logger.silent.error("Failed to fetch from server", error)
+        console.error("[OfflineStorage] Failed to fetch from server, falling back to cache:", error)
       }
-    } else {
-      console.log("[OfflineStorage] Offline - returning IndexedDB transactions only")
     }
 
-    return offline
+    // Offline or server failed - use IndexedDB cache
+    console.log("[OfflineStorage] Offline mode - fetching from IndexedDB cache")
+    const cached = await dbManager.getAll<Transaction>("transaction", this.userId)
+    console.log("[OfflineStorage] Found", cached.length, "transactions in cache")
+    return cached
   }
 
   async updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
-    const existing = await dbManager.get("transaction", id)
-    if (!existing) throw new Error("Transaction not found")
-    
-    const updated = { ...existing.data, ...updates }
-    await dbManager.save("transaction", this.userId, updated)
-
+    // If online, update on server
     if (syncManager.getOnlineStatus()) {
-      syncManager.startSync().catch((error) => logger.silent.error("Sync failed", error))
+      try {
+        const response = await fetch(`/api/transactions/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || "Failed to update transaction")
+        }
+
+        const updated = await response.json()
+        // Update cache
+        await dbManager.save("transaction", this.userId, updated)
+        await dbManager.markSynced("transaction", id)
+      } catch (error) {
+        console.error("[OfflineStorage] Failed to update on server:", error)
+        throw error
+      }
+    } else {
+      // Offline - update in IndexedDB
+      const existing = await dbManager.get("transaction", id)
+      if (!existing) throw new Error("Transaction not found")
+
+      const updated = { ...existing.data, ...updates }
+      await dbManager.save("transaction", this.userId, updated)
     }
   }
 
   async deleteTransaction(id: string): Promise<void> {
-    await dbManager.delete("transaction", id)
-    
-    // Also delete on server if online
+    // If online, delete on server
     if (syncManager.getOnlineStatus()) {
       try {
-        await fetch(`/api/transactions/${id}`, { method: "DELETE" })
+        const response = await fetch(`/api/transactions/${id}`, { method: "DELETE" })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || "Failed to delete transaction")
+        }
+
+        // Also remove from cache
+        await dbManager.delete("transaction", id)
       } catch (error) {
-        logger.silent.error("Failed to delete on server", error)
+        console.error("[OfflineStorage] Failed to delete on server:", error)
+        throw error
       }
+    } else {
+      // Offline - mark for deletion (will sync later)
+      await dbManager.delete("transaction", id)
     }
   }
 

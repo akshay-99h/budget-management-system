@@ -117,6 +117,8 @@ export default function TransactionsPage() {
       await saveTransaction(transaction)
       console.log("[TransactionPage] Transaction saved successfully")
 
+      setIsDialogOpen(false)
+
       toast({
         title: "Success",
         description: isOnline
@@ -124,10 +126,7 @@ export default function TransactionsPage() {
           : "Transaction saved offline. Will sync when online.",
       })
 
-      setIsDialogOpen(false)
-
-      // Wait a bit for the sync to complete before refreshing
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Refresh transaction list
       await fetchTransactions()
     } catch (error: any) {
       console.error("[TransactionPage] Error saving transaction:", error)
