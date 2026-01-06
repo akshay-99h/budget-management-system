@@ -191,9 +191,10 @@ class SyncManager {
     console.log(`[SyncManager] Prepared bulk data for ${type}:`, bulkData)
 
     try {
-      // Call bulk API endpoint
-      console.log(`[SyncManager] Calling /api/sync/${type}/bulk with ${bulkData.length} records`)
-      const response = await fetch(`/api/sync/${type}/bulk`, {
+      // Call bulk API endpoint - pluralize the type for the API path
+      const apiPath = type === "transaction" ? "transactions" : type === "budget" ? "budgets" : "loans"
+      console.log(`[SyncManager] Calling /api/sync/${apiPath}/bulk with ${bulkData.length} records`)
+      const response = await fetch(`/api/sync/${apiPath}/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ records: bulkData }),
