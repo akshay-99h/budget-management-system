@@ -73,19 +73,28 @@ export async function POST(request: Request) {
                 createdAt: record.createdAt || new Date().toISOString(),
               }
 
+              console.log("[BulkSync] Creating new transaction:", newTransaction.id)
               await saveTransaction(user.id, newTransaction)
+              console.log("[BulkSync] Transaction saved successfully")
 
               // Update bank account balance
               const bankAccount = await getBankAccountById(user.id, validated.bankAccountId)
               if (bankAccount) {
+                console.log("[BulkSync] Updating bank account balance for:", validated.bankAccountId)
                 const balanceChange = validated.type === "income" ? validated.amount : -validated.amount
                 const newBalance = bankAccount.balance + balanceChange
                 await updateBankAccount(user.id, validated.bankAccountId, { balance: newBalance })
+                console.log("[BulkSync] Bank account balance updated to:", newBalance)
+              } else {
+                console.error("[BulkSync] Bank account not found:", validated.bankAccountId)
+                throw new Error(`Bank account not found: ${validated.bankAccountId}`)
               }
             }
 
             synced.push(record.id)
+            console.log("[BulkSync] Transaction synced successfully:", record.id)
           } catch (error: any) {
+            console.error("[BulkSync] Error syncing transaction:", record.id, error)
             errors.push({
               id: record.id,
               error: error.message || "Failed to sync transaction",

@@ -56,7 +56,9 @@ class SyncManager {
 
   // Start sync process
   async startSync(userId?: string): Promise<SyncResult> {
+    console.log("[SyncManager] startSync called, online:", this.isOnline, "syncing:", this.isSyncing)
     if (!this.isOnline || this.isSyncing) {
+      console.log("[SyncManager] Not syncing - online:", this.isOnline, "isSyncing:", this.isSyncing)
       return { success: false, synced: 0, failed: 0, errors: [] }
     }
 
@@ -65,7 +67,9 @@ class SyncManager {
 
     try {
       const resolvedUserId = userId || (await this.getUserId())
+      console.log("[SyncManager] Resolved userId:", resolvedUserId)
       if (!resolvedUserId) {
+        console.error("[SyncManager] No userId found")
         return {
           success: false,
           synced: 0,
@@ -73,7 +77,9 @@ class SyncManager {
           errors: ["User not authenticated"],
         }
       }
+      console.log("[SyncManager] Starting syncAll for user:", resolvedUserId)
       const result = await this.syncAll(resolvedUserId)
+      console.log("[SyncManager] Sync completed:", result)
       return result
     } finally {
       this.isSyncing = false
@@ -83,6 +89,7 @@ class SyncManager {
 
   // Sync all data types
   private async syncAll(userId: string): Promise<SyncResult> {
+    console.log("[SyncManager] syncAll starting for userId:", userId)
     const result: SyncResult = {
       success: true,
       synced: 0,
@@ -99,17 +106,21 @@ class SyncManager {
 
     for (const type of types) {
       try {
+        console.log(`[SyncManager] Syncing ${type}...`)
         const typeResult = await this.syncType(type, userId)
+        console.log(`[SyncManager] ${type} sync result:`, typeResult)
         result.synced += typeResult.synced
         result.failed += typeResult.failed
         result.errors.push(...typeResult.errors)
       } catch (error: any) {
+        console.error(`[SyncManager] Error syncing ${type}:`, error)
         result.failed++
         result.errors.push(`Failed to sync ${type}: ${error.message}`)
       }
     }
 
     result.success = result.failed === 0
+    console.log("[SyncManager] syncAll completed:", result)
     return result
   }
 
@@ -126,9 +137,12 @@ class SyncManager {
     }
 
     // Get all unsynced records
+    console.log(`[SyncManager] Getting unsynced ${type} records for user:`, userId)
     const unsynced = await dbManager.getUnsynced(type, userId)
+    console.log(`[SyncManager] Found ${unsynced.length} unsynced ${type} records`)
 
     if (unsynced.length === 0) {
+      console.log(`[SyncManager] No unsynced ${type} records to sync`)
       return result
     }
 

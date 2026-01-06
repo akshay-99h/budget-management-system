@@ -125,12 +125,10 @@ export default function TransactionsPage() {
       })
 
       setIsDialogOpen(false)
-      fetchTransactions()
 
-      // Try to sync if online
-      if (isOnline) {
-        sync().catch(console.error)
-      }
+      // Wait a bit for the sync to complete before refreshing
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await fetchTransactions()
     } catch (error: any) {
       console.error("[TransactionPage] Error saving transaction:", error)
       console.error("[TransactionPage] Error stack:", error.stack)

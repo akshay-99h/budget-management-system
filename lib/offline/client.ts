@@ -24,13 +24,22 @@ export class OfflineStorage {
       console.log("[OfflineStorage] Saving transaction:", transaction)
       const transactionWithUserId = { ...transaction, userId: this.userId }
       await dbManager.save("transaction", this.userId, transactionWithUserId)
-      console.log("[OfflineStorage] Transaction saved successfully")
-      // Try to sync immediately if online
+      console.log("[OfflineStorage] Transaction saved to IndexedDB successfully")
+      // Try to sync immediately if online and wait for it to complete
       if (syncManager.getOnlineStatus()) {
-        syncManager.startSync(this.userId).catch((error) => {
-          console.error("[OfflineStorage] Sync failed:", error)
-          logger.silent.error("Sync failed", error)
-        })
+        console.log("[OfflineStorage] Attempting immediate sync...")
+        try {
+          const syncResult = await syncManager.startSync(this.userId)
+          console.log("[OfflineStorage] Sync result:", syncResult)
+          if (!syncResult.success) {
+            console.error("[OfflineStorage] Sync completed with errors:", syncResult.errors)
+          }
+        } catch (error) {
+          console.error("[OfflineStorage] Sync failed with exception:", error)
+          // Don't throw - transaction is still saved offline
+        }
+      } else {
+        console.log("[OfflineStorage] Offline mode - transaction saved locally only")
       }
     } catch (error) {
       console.error("[OfflineStorage] Failed to save transaction:", error)
@@ -40,14 +49,18 @@ export class OfflineStorage {
 
   async getTransactions(): Promise<Transaction[]> {
     // First try to get from IndexedDB
+    console.log("[OfflineStorage] Fetching transactions from IndexedDB for user:", this.userId)
     const offline = await dbManager.getAll<Transaction>("transaction", this.userId)
+    console.log("[OfflineStorage] Found", offline.length, "transactions in IndexedDB")
 
     // If online, also fetch from server and merge
     if (syncManager.getOnlineStatus()) {
       try {
+        console.log("[OfflineStorage] Online - fetching from server...")
         const response = await fetch("/api/transactions")
         if (response.ok) {
           const server = await response.json()
+          console.log("[OfflineStorage] Found", server.length, "transactions on server")
           // Merge and deduplicate by ID using timestamps
           const merged = new Map<string, Transaction>()
 
@@ -70,11 +83,18 @@ export class OfflineStorage {
             }
           })
 
-          return Array.from(merged.values())
+          const result = Array.from(merged.values())
+          console.log("[OfflineStorage] Returning", result.length, "merged transactions")
+          return result
+        } else {
+          console.error("[OfflineStorage] Server fetch failed with status:", response.status)
         }
       } catch (error) {
+        console.error("[OfflineStorage] Failed to fetch from server:", error)
         logger.silent.error("Failed to fetch from server", error)
       }
+    } else {
+      console.log("[OfflineStorage] Offline - returning IndexedDB transactions only")
     }
 
     return offline
