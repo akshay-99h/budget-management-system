@@ -188,20 +188,33 @@ class SyncManager {
       _lastModified: r.lastModified,
     }))
 
+    console.log(`[SyncManager] Prepared bulk data for ${type}:`, bulkData)
+
     try {
       // Call bulk API endpoint
+      console.log(`[SyncManager] Calling /api/sync/${type}/bulk with ${bulkData.length} records`)
       const response = await fetch(`/api/sync/${type}/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ records: bulkData }),
       })
 
+      console.log(`[SyncManager] Bulk sync response status:`, response.status)
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Bulk sync failed")
+        const errorText = await response.text()
+        console.error(`[SyncManager] Bulk sync failed with status ${response.status}:`, errorText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        throw new Error(errorData.error || `Bulk sync failed with status ${response.status}`)
       }
 
       const responseData = await response.json()
+      console.log(`[SyncManager] Bulk sync response:`, responseData)
 
       // Mark records as synced
       for (const record of records) {
@@ -210,13 +223,17 @@ class SyncManager {
           result.synced++
         } else {
           result.failed++
+          const errorDetail = responseData.errors?.find((e: any) => e.id === record.id)
+          const errorMsg = errorDetail?.error || "Not in response"
+          console.error(`[SyncManager] Failed to sync ${type} ${record.id}:`, errorMsg)
           result.errors.push(
-            `Failed to sync ${type} ${record.id}: Not in response`
+            `Failed to sync ${type} ${record.id}: ${errorMsg}`
           )
         }
       }
     } catch (error: any) {
       // Mark all as failed
+      console.error(`[SyncManager] Chunk sync exception:`, error)
       result.failed += records.length
       result.errors.push(`Chunk sync error: ${error.message}`)
     }
