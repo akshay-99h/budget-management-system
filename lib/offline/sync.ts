@@ -23,10 +23,15 @@ class SyncManager {
 
     // Listen for online/offline events
     window.addEventListener("online", () => {
+      console.log("[SyncManager] Network status changed to ONLINE - starting sync")
       this.isOnline = true
-      this.startSync()
+      this.startSync().catch((error) => {
+        console.error("[SyncManager] Auto-sync failed after going online:", error)
+        logger.error("Auto-sync failed", error)
+      })
     })
     window.addEventListener("offline", () => {
+      console.log("[SyncManager] Network status changed to OFFLINE")
       this.isOnline = false
     })
 
