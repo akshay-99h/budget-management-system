@@ -60,11 +60,17 @@ export class OfflineStorage {
   }
 
   async getTransactions(): Promise<Transaction[]> {
-    // If online, fetch from server (source of truth)
-    if (syncManager.getOnlineStatus()) {
+    const isOnline = typeof window !== "undefined" ? navigator.onLine : true
+    console.log("[OfflineStorage] getTransactions called, navigator.onLine:", isOnline)
+    console.log("[OfflineStorage] syncManager.getOnlineStatus():", syncManager.getOnlineStatus())
+
+    // Always try to fetch from server first if we have network
+    if (isOnline) {
       try {
         console.log("[OfflineStorage] Online - fetching from server...")
         const response = await fetch("/api/transactions")
+        console.log("[OfflineStorage] Server response status:", response.status)
+
         if (response.ok) {
           const transactions = await response.json()
           console.log("[OfflineStorage] Fetched", transactions.length, "transactions from server")

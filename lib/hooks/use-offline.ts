@@ -12,7 +12,11 @@ export function useOffline() {
   const [isSyncing, setIsSyncing] = useState(false)
 
   useEffect(() => {
+    console.log("[useOffline] Session effect triggered, session:", session)
+    console.log("[useOffline] User ID:", session?.user?.id)
+
     if (session?.user?.id) {
+      console.log("[useOffline] Initializing OfflineStorage for user:", session.user.id)
       const offlineStorage = new OfflineStorage(session.user.id)
       setStorage(offlineStorage)
       setIsOnline(offlineStorage.isOnline())
@@ -25,6 +29,8 @@ export function useOffline() {
       return () => {
         unsubscribe()
       }
+    } else {
+      console.warn("[useOffline] No session or user ID, storage not initialized")
     }
   }, [session])
 
@@ -51,7 +57,22 @@ export function useOffline() {
   )
 
   const getTransactions = useCallback(async (): Promise<Transaction[]> => {
-    if (!storage) return []
+    console.log("[useOffline] getTransactions called, storage initialized:", !!storage)
+    if (!storage) {
+      console.warn("[useOffline] Storage not initialized, fetching directly from API")
+      // Fallback: fetch directly from API if storage isn't ready
+      try {
+        const response = await fetch("/api/transactions")
+        if (response.ok) {
+          const transactions = await response.json()
+          console.log("[useOffline] Fetched", transactions.length, "transactions directly from API")
+          return transactions
+        }
+      } catch (error) {
+        console.error("[useOffline] Failed to fetch from API:", error)
+      }
+      return []
+    }
     return storage.getTransactions()
   }, [storage])
 

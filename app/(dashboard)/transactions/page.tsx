@@ -71,10 +71,14 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     try {
+      console.log("[TransactionPage] Fetching transactions...")
       // Use offline storage which handles online/offline automatically
       const data = await getTransactions()
+      console.log("[TransactionPage] Fetched transactions:", data)
+      console.log("[TransactionPage] Number of transactions:", data.length)
       setTransactions(data)
     } catch (error) {
+      console.error("[TransactionPage] Error fetching transactions:", error)
       toast({
         title: "Error",
         description: "Failed to load transactions",
@@ -147,6 +151,10 @@ export default function TransactionsPage() {
     if (filterCategory !== "all" && t.category !== filterCategory) return false
     return true
   })
+
+  console.log("[TransactionPage] Filter settings - Type:", filterType, "Category:", filterCategory)
+  console.log("[TransactionPage] Total transactions:", transactions.length)
+  console.log("[TransactionPage] Filtered transactions:", filteredTransactions.length)
 
   const categories = Array.from(new Set(transactions.map((t) => t.category)))
 
