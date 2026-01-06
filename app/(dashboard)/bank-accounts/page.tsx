@@ -67,6 +67,7 @@ export default function BankAccountsPage() {
     currency: "INR",
     isDefault: false,
   })
+  const [allowBalanceEdit, setAllowBalanceEdit] = useState(false)
 
   useEffect(() => {
     fetchAccounts()
@@ -151,6 +152,7 @@ export default function BankAccountsPage() {
 
   const handleEdit = (account: BankAccount) => {
     setEditingAccount(account)
+    setAllowBalanceEdit(false)
     setFormData({
       name: account.name,
       accountNumber: account.accountNumber || "",
@@ -164,6 +166,7 @@ export default function BankAccountsPage() {
 
   const resetForm = () => {
     setEditingAccount(null)
+    setAllowBalanceEdit(false)
     setFormData({
       name: "",
       accountNumber: "",
@@ -251,7 +254,14 @@ export default function BankAccountsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="balance">Current Balance</Label>
+                  <Label htmlFor="balance">
+                    Current Balance
+                    {editingAccount && !allowBalanceEdit && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Automatically calculated from transactions)
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="balance"
                     type="number"
@@ -263,8 +273,36 @@ export default function BankAccountsPage() {
                         balance: parseFloat(e.target.value) || 0,
                       })
                     }
-                    required
+                    disabled={editingAccount && !allowBalanceEdit}
+                    required={!editingAccount}
+                    className={editingAccount && !allowBalanceEdit ? "bg-muted cursor-not-allowed" : ""}
                   />
+                  {editingAccount && !allowBalanceEdit && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Balance is managed automatically through transactions.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAllowBalanceEdit(true)}
+                        className="text-xs h-8"
+                      >
+                        Manually Adjust Balance
+                      </Button>
+                    </div>
+                  )}
+                  {editingAccount && allowBalanceEdit && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500">
+                      ⚠️ Manual adjustment mode. This will override the calculated balance.
+                    </p>
+                  )}
+                  {!editingAccount && (
+                    <p className="text-xs text-muted-foreground">
+                      Set your starting balance. It will be updated automatically as you add transactions.
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center space-x-2">
                   <input
