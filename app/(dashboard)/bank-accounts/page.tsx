@@ -127,21 +127,30 @@ export default function BankAccountsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this account?")) return
+    console.log("[BankAccounts] Delete requested for account:", id)
+    if (!confirm("Are you sure you want to delete this account?")) {
+      console.log("[BankAccounts] Delete cancelled by user")
+      return
+    }
 
     try {
+      console.log("[BankAccounts] Deleting account...")
       const response = await fetch(`/api/bank-accounts/${id}`, {
         method: "DELETE",
       })
 
       if (response.ok) {
+        console.log("[BankAccounts] Account deleted successfully")
         toast({
           title: "Success",
           description: "Account deleted successfully",
         })
         fetchAccounts()
+      } else {
+        console.error("[BankAccounts] Delete failed with status:", response.status)
       }
     } catch (error) {
+      console.error("[BankAccounts] Delete error:", error)
       toast({
         title: "Error",
         description: "Failed to delete account",
@@ -151,6 +160,7 @@ export default function BankAccountsPage() {
   }
 
   const handleEdit = (account: BankAccount) => {
+    console.log("[BankAccounts] Editing account:", account.id)
     setEditingAccount(account)
     setAllowBalanceEdit(false)
     setFormData({
@@ -404,18 +414,26 @@ export default function BankAccountsPage() {
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 relative z-10"
+                        aria-label="Account options"
+                      >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEdit(account)}>
+                    <DropdownMenuContent align="end" className="z-50">
+                      <DropdownMenuItem
+                        onClick={() => handleEdit(account)}
+                        className="cursor-pointer"
+                      >
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleDelete(account.id)}
-                        className="text-destructive"
+                        className="text-destructive cursor-pointer"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
