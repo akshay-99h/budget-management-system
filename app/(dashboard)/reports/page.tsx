@@ -5,7 +5,8 @@ import { Transaction, Budget, Loan } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Share2 } from "lucide-react"
+import { Download, Share2, TrendingUp, BarChart3, ArrowRight } from "lucide-react"
+import Link from "next/link"
 import {
   getMonthlyIncome,
   getMonthlyExpenses,
@@ -222,9 +223,9 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Reports</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Reports & Analytics</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            View and export your financial data
+            View, analyze, and export your financial data
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 sm:space-x-0">
@@ -255,6 +256,58 @@ export default function ReportsPage() {
             <span className="sm:hidden">{isMobileApp ? "Share" : "Export"}</span>
           </Button>
         </div>
+      </div>
+
+      {/* Quick Navigation to Analytics Pages */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+        <Link href="/expenditure-analysis">
+          <Card className="border-2 hover:shadow-lg transition-all hover:border-primary cursor-pointer group">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Expenditure Trends</CardTitle>
+                    <CardDescription className="text-xs">
+                      Advanced spending analysis
+                    </CardDescription>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1 transition-transform" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-sm text-muted-foreground">
+                View monthly & yearly trends, category analysis, and spending deviations
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Card className="border-2 bg-muted/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Current Reports</CardTitle>
+                  <CardDescription className="text-xs">
+                    Monthly summaries & exports
+                  </CardDescription>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground">
+              Export and share your financial data for the selected month
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">

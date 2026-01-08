@@ -51,6 +51,13 @@
       "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
     },
     {
+      "name": "Expenditure Trends",
+      "short_name": "Trends",
+      "description": "Analyze spending patterns and trends",
+      "url": "/expenditure-analysis",
+      "icons": [{ "src": "/web-app-manifest-192x192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "SIP Investments",
       "short_name": "SIP",
       "description": "Manage your systematic investment plans",

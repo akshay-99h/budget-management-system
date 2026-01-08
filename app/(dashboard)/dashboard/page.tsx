@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Transaction, Budget, Loan, BankAccount, Wishlist, SIP } from "@/lib/types"
+import { Transaction, Budget, Loan, BankAccount, Wishlist, SIP, Stock } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -47,6 +47,10 @@ import {
   BudgetAlertsWidget,
   QuickInsightsWidget,
   NetWorthWidget,
+  TotalInvestmentsWidget,
+  InvestmentGrowthWidget,
+  MajorExpensesWidget,
+  YearlyComparisonWidget,
 } from "@/components/dashboard/widgets"
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
@@ -58,6 +62,7 @@ export default function DashboardPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [wishlistItems, setWishlistItems] = useState<Wishlist[]>([])
   const [sips, setSips] = useState<SIP[]>([])
+  const [stocks, setStocks] = useState<Stock[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileApp, setIsMobileApp] = useState(false)
   const { runTour, stopTour, startTour, isTourCompleted } = useTour()
@@ -92,16 +97,17 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [transactionsRes, budgetsRes, loansRes, bankAccountsRes, wishlistRes, sipsRes] = await Promise.all([
+        const [transactionsRes, budgetsRes, loansRes, bankAccountsRes, wishlistRes, sipsRes, stocksRes] = await Promise.all([
           fetch("/api/transactions"),
           fetch("/api/budgets"),
           fetch("/api/loans"),
           fetch("/api/bank-accounts"),
           fetch("/api/wishlist"),
           fetch("/api/sip"),
+          fetch("/api/stocks"),
         ])
 
-        if (!transactionsRes.ok || !budgetsRes.ok || !loansRes.ok || !bankAccountsRes.ok || !wishlistRes.ok || !sipsRes.ok) {
+        if (!transactionsRes.ok || !budgetsRes.ok || !loansRes.ok || !bankAccountsRes.ok || !wishlistRes.ok || !sipsRes.ok || !stocksRes.ok) {
           throw new Error("Failed to fetch data")
         }
 
@@ -111,6 +117,7 @@ export default function DashboardPage() {
         const bankAccountsData = await bankAccountsRes.json()
         const wishlistData = await wishlistRes.json()
         const sipsData = await sipsRes.json()
+        const stocksData = await stocksRes.json()
 
         setTransactions(transactionsData)
         setBudgets(budgetsData)
@@ -118,6 +125,7 @@ export default function DashboardPage() {
         setBankAccounts(bankAccountsData)
         setWishlistItems(wishlistData)
         setSips(sipsData)
+        setStocks(stocksData)
       } catch (error) {
         console.error("Error fetching data:", error)
       } finally {
@@ -231,18 +239,38 @@ export default function DashboardPage() {
 
         {/* Quick Actions for Mobile App */}
         {isMobileApp && (
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/budgets">
-              <Button variant="outline" className="w-full gap-2 h-14">
-                <Target className="h-5 w-5" />
-                Set Budget
-              </Button>
-            </Link>
-            <Link href="/loans">
-              <Button variant="outline" className="w-full gap-2 h-14">
-                <HandCoins className="h-5 w-5" />
-                Add Loan
-              </Button>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Link href="/budgets">
+                <Button variant="outline" className="w-full gap-2 h-14">
+                  <Target className="h-5 w-5" />
+                  Set Budget
+                </Button>
+              </Link>
+              <Link href="/loans">
+                <Button variant="outline" className="w-full gap-2 h-14">
+                  <HandCoins className="h-5 w-5" />
+                  Add Loan
+                </Button>
+              </Link>
+            </div>
+            <Link href="/expenditure-analysis">
+              <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 hover:shadow-lg transition-all cursor-pointer group">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">Expenditure Trends</p>
+                        <p className="text-xs text-muted-foreground">View spending analysis</p>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="h-5 w-5 text-primary group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
             </Link>
           </div>
         )}
@@ -413,6 +441,8 @@ export default function DashboardPage() {
           <SavingsRateWidget monthlyIncome={monthlyIncome} monthlyExpenses={monthlyExpenses} />
         )}
         {preferences.netWorth && <NetWorthWidget bankAccounts={bankAccounts} loans={loans} />}
+        <TotalInvestmentsWidget sips={sips} stocks={stocks} />
+        <InvestmentGrowthWidget sips={sips} stocks={stocks} />
       </div>
 
       {/* Analysis & Planning Widgets */}
@@ -433,6 +463,7 @@ export default function DashboardPage() {
           <BudgetAlertsWidget budgets={monthlyBudgets} spendingByCategory={spendingByCategory} />
         )}
         {preferences.accountDistribution && <AccountDistributionWidget bankAccounts={bankAccounts} />}
+        <MajorExpensesWidget transactions={transactions} />
       </div>
 
       {/* Wide Widgets */}
@@ -449,6 +480,7 @@ export default function DashboardPage() {
             monthlyExpenses={monthlyExpenses}
           />
         )}
+        <YearlyComparisonWidget transactions={transactions} />
       </div>
 
       {/* Charts */}

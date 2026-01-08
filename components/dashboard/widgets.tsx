@@ -21,7 +21,7 @@ import {
   Target,
 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { Transaction, Budget, Loan, BankAccount, Wishlist } from "@/lib/types"
+import { Transaction, Budget, Loan, BankAccount, Wishlist, Stock, SIP } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
   LineChart,
@@ -37,16 +37,6 @@ import {
 } from "recharts"
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns"
 
-interface SIP {
-  id: string
-  name: string
-  amount: number
-  frequency: "daily" | "weekly" | "monthly" | "yearly"
-  nextExecutionDate?: string
-  isActive: boolean
-  category: string
-}
-
 interface WidgetProps {
   transactions: Transaction[]
   budgets: Budget[]
@@ -54,6 +44,7 @@ interface WidgetProps {
   bankAccounts: BankAccount[]
   wishlistItems: Wishlist[]
   sips: SIP[]
+  stocks: Stock[]
   currentMonth: string
   monthlyIncome: number
   monthlyExpenses: number
@@ -859,6 +850,279 @@ export function NetWorthWidget({ bankAccounts, loans }: Pick<WidgetProps, "bankA
           <div className="flex justify-between">
             <span>Liabilities:</span>
             <span className="font-medium">{formatCurrency(totalLiabilities)}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// 13. Total Investments Widget
+export function TotalInvestmentsWidget({ sips, stocks }: Pick<WidgetProps, "sips" | "stocks">) {
+  // Calculate total SIP investment value
+  const totalSIPValue = sips.reduce((sum, sip) => {
+    return sum + (sip.currentNetValue || 0)
+  }, 0)
+
+  // Calculate total stocks value
+  const totalStocksValue = stocks.reduce((sum, stock) => {
+    const currentValue = (stock.currentPrice || stock.purchasePrice) * stock.quantity
+    return sum + currentValue
+  }, 0)
+
+  const totalInvestment = totalSIPValue + totalStocksValue
+  const activeSIPs = sips.filter((s) => s.isActive).length
+  const stocksCount = stocks.length
+
+  return (
+    <Card className="border-2 hover:shadow-lg transition-shadow bg-linear-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/20 dark:to-cyan-900/10">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-cyan-700 dark:text-cyan-400">
+          Total Investments
+        </CardTitle>
+        <div className="h-10 w-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
+          <TrendingUp className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold text-cyan-700 dark:text-cyan-400">
+          {formatCurrency(totalInvestment)}
+        </div>
+        <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+          <div className="flex justify-between">
+            <span>SIPs ({activeSIPs} active):</span>
+            <span className="font-medium">{formatCurrency(totalSIPValue)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Stocks ({stocksCount}):</span>
+            <span className="font-medium">{formatCurrency(totalStocksValue)}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// 14. Investment Growth Widget
+export function InvestmentGrowthWidget({ sips, stocks }: Pick<WidgetProps, "sips" | "stocks">) {
+  // Calculate SIP investment and growth
+  const sipInvested = sips.reduce((sum, sip) => {
+    // Calculate total invested based on frequency and dates
+    if (!sip.lastExecuted) return sum
+
+    const adjustments = sip.adjustments || []
+    const totalAdjustments = adjustments
+      .filter((adj) => adj.type === "deposit")
+      .reduce((s, adj) => s + adj.amount, 0)
+
+    return sum + totalAdjustments
+  }, 0)
+
+  const sipCurrentValue = sips.reduce((sum, sip) => sum + (sip.currentNetValue || 0), 0)
+  const sipGrowth = sipInvested > 0 ? ((sipCurrentValue - sipInvested) / sipInvested) * 100 : 0
+
+  // Calculate stocks investment and growth
+  const stocksInvested = stocks.reduce((sum, stock) => sum + (stock.purchasePrice * stock.quantity), 0)
+  const stocksCurrentValue = stocks.reduce((sum, stock) => {
+    const currentValue = (stock.currentPrice || stock.purchasePrice) * stock.quantity
+    return sum + currentValue
+  }, 0)
+  const stocksGrowth = stocksInvested > 0 ? ((stocksCurrentValue - stocksInvested) / stocksInvested) * 100 : 0
+
+  // Overall growth
+  const totalInvested = sipInvested + stocksInvested
+  const totalCurrent = sipCurrentValue + stocksCurrentValue
+  const totalGrowth = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0
+  const totalGrowthAmount = totalCurrent - totalInvested
+
+  const isPositive = totalGrowth >= 0
+
+  return (
+    <Card
+      className={cn(
+        "border-2 hover:shadow-lg transition-shadow bg-linear-to-br",
+        isPositive
+          ? "from-teal-50 to-teal-100/50 dark:from-teal-950/20 dark:to-teal-900/10"
+          : "from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+      )}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle
+          className={cn("text-sm font-medium", isPositive ? "text-teal-700 dark:text-teal-400" : "text-red-700 dark:text-red-400")}
+        >
+          Investment Growth
+        </CardTitle>
+        <div
+          className={cn(
+            "h-10 w-10 rounded-full flex items-center justify-center",
+            isPositive ? "bg-teal-500/20" : "bg-red-500/20"
+          )}
+        >
+          {isPositive ? (
+            <TrendingUp className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+          ) : (
+            <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className={cn("text-3xl font-bold", isPositive ? "text-teal-700 dark:text-teal-400" : "text-red-700 dark:text-red-400")}>
+          {isPositive ? "+" : ""}{totalGrowth.toFixed(2)}%
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {isPositive ? "Gain" : "Loss"}: {formatCurrency(Math.abs(totalGrowthAmount))}
+        </p>
+        <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+          <div className="flex justify-between">
+            <span>Invested:</span>
+            <span className="font-medium">{formatCurrency(totalInvested)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Current:</span>
+            <span className="font-medium">{formatCurrency(totalCurrent)}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// 15. Major Expenses Widget
+export function MajorExpensesWidget({ transactions }: Pick<WidgetProps, "transactions">) {
+  const allTimeExpenses = transactions
+    .filter((t) => t.type === "expense")
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10)
+
+  return (
+    <Card className="border-2 hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-primary" />
+          Major Expenses
+        </CardTitle>
+        <CardDescription>Top 10 all-time expenses</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {allTimeExpenses.length > 0 ? (
+            allTimeExpenses.map((transaction, index) => (
+              <div
+                key={transaction.id}
+                className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-red-600 dark:text-red-400">#{index + 1}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {transaction.description || transaction.category}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {transaction.category} • {formatDate(transaction.date)}
+                    </p>
+                  </div>
+                </div>
+                <div className="font-bold text-red-600 dark:text-red-400 shrink-0 ml-2">
+                  {formatCurrency(transaction.amount)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">No expenses recorded</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// 16. Yearly Comparison Widget
+export function YearlyComparisonWidget({ transactions }: Pick<WidgetProps, "transactions">) {
+  const currentYear = new Date().getFullYear()
+  const lastYear = currentYear - 1
+
+  const getYearData = (year: number) => {
+    const yearTransactions = transactions.filter((t) => new Date(t.date).getFullYear() === year)
+    const income = yearTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + t.amount, 0)
+    const expenses = yearTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + t.amount, 0)
+    return { income, expenses, net: income - expenses }
+  }
+
+  const currentYearData = getYearData(currentYear)
+  const lastYearData = getYearData(lastYear)
+
+  const incomeChange = lastYearData.income > 0
+    ? ((currentYearData.income - lastYearData.income) / lastYearData.income) * 100
+    : 0
+  const expenseChange = lastYearData.expenses > 0
+    ? ((currentYearData.expenses - lastYearData.expenses) / lastYearData.expenses) * 100
+    : 0
+
+  const chartData = [
+    {
+      year: lastYear.toString(),
+      income: lastYearData.income,
+      expenses: lastYearData.expenses,
+    },
+    {
+      year: currentYear.toString(),
+      income: currentYearData.income,
+      expenses: currentYearData.expenses,
+    },
+  ]
+
+  return (
+    <Card className="border-2 hover:shadow-lg transition-shadow col-span-full md:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-primary" />
+          Yearly Comparison
+        </CardTitle>
+        <CardDescription>Income vs Expenses - Year over Year</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+            <XAxis dataKey="year" fontSize={12} />
+            <YAxis fontSize={12} />
+            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+            <Line
+              type="monotone"
+              dataKey="income"
+              stroke="#10b981"
+              strokeWidth={3}
+              name="Income"
+              dot={{ fill: "#10b981", r: 6 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="expenses"
+              stroke="#ef4444"
+              strokeWidth={3}
+              name="Expenses"
+              dot={{ fill: "#ef4444", r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="p-3 rounded-lg border bg-card">
+            <p className="text-xs text-muted-foreground mb-1">Income Change</p>
+            <p className={cn("text-lg font-bold", incomeChange >= 0 ? "text-green-600" : "text-red-600")}>
+              {incomeChange >= 0 ? "+" : ""}{incomeChange.toFixed(1)}%
+            </p>
+          </div>
+          <div className="p-3 rounded-lg border bg-card">
+            <p className="text-xs text-muted-foreground mb-1">Expense Change</p>
+            <p className={cn("text-lg font-bold", expenseChange <= 0 ? "text-green-600" : "text-red-600")}>
+              {expenseChange >= 0 ? "+" : ""}{expenseChange.toFixed(1)}%
+            </p>
           </div>
         </div>
       </CardContent>
