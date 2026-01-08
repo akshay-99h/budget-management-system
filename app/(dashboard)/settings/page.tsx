@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
 import { getUserById } from "@/lib/data/storage"
 import { Trash2, AlertTriangle } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { useTheme } from "@/contexts/ThemeContext"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +30,7 @@ import { format } from "date-fns"
 export default function SettingsPage() {
   const { data: session } = useSession()
   const { toast } = useToast()
+  const { theme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
@@ -154,6 +157,26 @@ export default function SettingsPage() {
           Manage your account settings and preferences
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>
+            Customize the appearance of the application
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Theme</Label>
+              <p className="text-sm text-muted-foreground">
+                Choose your preferred theme. Current: <span className="font-medium capitalize">{theme}</span>
+              </p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
