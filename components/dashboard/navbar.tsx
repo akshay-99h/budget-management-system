@@ -14,6 +14,7 @@ import {
   LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ThemeToggleSimple } from "@/components/theme-toggle"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -56,10 +57,13 @@ export function Navbar() {
               })}
             </div>
           </div>
-          <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/login" })}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign out
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggleSimple />
+            <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/login" })}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign out
+            </Button>
+          </div>
         </div>
       </div>
     </nav>

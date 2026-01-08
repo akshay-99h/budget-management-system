@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const navItems = [
   {
@@ -67,6 +68,7 @@ const navItems = [
     section: "Analytics",
     items: [
       { href: "/reports", label: "Reports", icon: BarChart3, badge: null },
+      { href: "/expenditure-analysis", label: "Expenditure Trends", icon: TrendingUp, badge: null },
     ],
   },
   {
@@ -211,6 +213,13 @@ export function AppSidebar() {
                 </span>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/settings" className="cursor-pointer flex items-center gap-2">
