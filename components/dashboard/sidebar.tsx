@@ -19,6 +19,7 @@ import {
   Heart,
   LineChart,
   Activity,
+  CreditCard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -48,6 +49,7 @@ const navItems = [
       { href: "/transactions", label: "Transactions", icon: Receipt, badge: null },
       { href: "/budgets", label: "Budgets", icon: Target, badge: null },
       { href: "/loans", label: "Loans", icon: HandCoins, badge: null },
+      { href: "/subscriptions", label: "Subscriptions", icon: CreditCard, badge: null },
       { href: "/bank-accounts", label: "Accounts", icon: Building2, badge: null },
     ],
   },

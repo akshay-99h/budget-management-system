@@ -1021,6 +1021,7 @@ export function MajorExpensesWidget({ transactions }: Pick<WidgetProps, "transac
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {transaction.category} • {formatDate(transaction.date)}
+                      {transaction.time && ` • ${transaction.time}`}
                     </p>
                   </div>
                 </div>

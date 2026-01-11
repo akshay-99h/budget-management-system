@@ -2,24 +2,30 @@
 
 import { Transaction, Loan } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { TrendingUp, TrendingDown, HandCoins, ArrowRight } from "lucide-react"
+import { TrendingUp, TrendingDown, HandCoins, ArrowRight, Wallet } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+
+interface TransactionWithBalance extends Transaction {
+  balanceAfterTransaction?: number
+}
 
 interface ActivityItem {
   id: string
   type: "transaction" | "loan"
   date: string
+  time?: string
   category: string
   description: string
   amount: number
   transactionType?: "income" | "expense"
   loanStatus?: string
   borrower?: string
+  balanceAfterTransaction?: number
 }
 
 interface ActivityListProps {
-  transactions: Transaction[]
+  transactions: TransactionWithBalance[]
   loans: Loan[]
   limit?: number
 }
@@ -31,10 +37,12 @@ export function ActivityList({ transactions, loans, limit }: ActivityListProps) 
       id: t.id,
       type: "transaction" as const,
       date: t.date,
+      time: t.time,
       category: t.category,
       description: t.description || "",
       amount: t.amount,
       transactionType: t.type,
+      balanceAfterTransaction: t.balanceAfterTransaction,
     })),
     ...loans.map((l) => ({
       id: l.id,
@@ -48,9 +56,14 @@ export function ActivityList({ transactions, loans, limit }: ActivityListProps) 
     })),
   ]
 
-  // Sort by date (most recent first)
+  // Sort by date and time (most recent first)
   const sortedActivities = activities
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => {
+      // Combine date and time for accurate sorting
+      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
+      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
+      return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime()
+    })
     .slice(0, limit || activities.length)
 
   if (sortedActivities.length === 0) {
@@ -108,8 +121,15 @@ export function ActivityList({ transactions, loans, limit }: ActivityListProps) 
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {formatDate(activity.date)}
+                      {activity.time && ` • ${activity.time}`}
                       {activity.description && ` • ${activity.description}`}
                     </p>
+                    {isTransaction && activity.balanceAfterTransaction !== undefined && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <Wallet className="h-3 w-3" />
+                        <span>Balance: {formatCurrency(activity.balanceAfterTransaction)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p
