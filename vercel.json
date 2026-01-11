@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/execute-recurring",
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/cron/execute-recurring/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
