@@ -340,6 +340,8 @@ export async function getSIPs(userId: string): Promise<SIP[]> {
     nextExecutionDate: s.nextExecutionDate,
     currentNetValue: s.currentNetValue,
     adjustments: s.adjustments || [],
+    bankAccountId: s.bankAccountId,
+    investmentType: s.investmentType || "mutual-fund",
     userId: s.userId,
     createdAt: s.createdAt.toISOString(),
   }));
@@ -366,6 +368,8 @@ export async function getSIPById(
     nextExecutionDate: sip.nextExecutionDate,
     currentNetValue: sip.currentNetValue,
     adjustments: sip.adjustments || [],
+    bankAccountId: sip.bankAccountId,
+    investmentType: sip.investmentType || "mutual-fund",
     userId: sip.userId,
     createdAt: sip.createdAt.toISOString(),
   };

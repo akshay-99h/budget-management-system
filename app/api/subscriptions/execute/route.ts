@@ -66,6 +66,9 @@ export async function POST(request: Request) {
           continue
         }
 
+        // Calculate new balance
+        const newBalance = bankAccount.balance - subscription.amount
+
         // Create expense transaction
         const transaction = {
           id: uuidv4(),
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
           time: new Date().toTimeString().slice(0, 5),
           description: `${subscription.name} - Subscription payment`,
           bankAccountId: subscription.bankAccountId,
+          accountBalanceAfter: newBalance,
           userId: user.id,
           createdAt: new Date().toISOString(),
         }
@@ -83,7 +87,6 @@ export async function POST(request: Request) {
         await saveTransaction(user.id, transaction)
 
         // Update bank account balance
-        const newBalance = bankAccount.balance - subscription.amount
         await updateBankAccount(user.id, subscription.bankAccountId, { balance: newBalance })
 
         // Calculate next execution date

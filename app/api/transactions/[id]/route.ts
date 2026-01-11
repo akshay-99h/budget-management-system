@@ -40,11 +40,17 @@ export async function PUT(
       )
     }
 
-    await updateTransaction(user.id, id, validated)
-
-    // Apply the new transaction's balance change
+    // Calculate new balance after this transaction
     const newBalanceChange = validated.type === "income" ? validated.amount : -validated.amount
     const newNewBalance = newBankAccount.balance + newBalanceChange
+
+    // Update transaction with new balance
+    await updateTransaction(user.id, id, {
+      ...validated,
+      accountBalanceAfter: newNewBalance,
+    })
+
+    // Apply the new transaction's balance change
     await updateBankAccount(user.id, validated.bankAccountId, { balance: newNewBalance })
 
     const updatedTransactions = await getTransactions(user.id)

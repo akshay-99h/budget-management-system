@@ -6,8 +6,10 @@ export interface ITransaction extends Document {
   amount: number
   category: string
   date: string
+  time?: string
   description?: string
   bankAccountId: string
+  accountBalanceAfter?: number
   userId: string
   createdAt: Date
 }
@@ -36,6 +38,9 @@ const TransactionSchema = new Schema<ITransaction>(
       type: String,
       required: true,
     },
+    time: {
+      type: String,
+    },
     description: {
       type: String,
     },
@@ -43,6 +48,9 @@ const TransactionSchema = new Schema<ITransaction>(
       type: String,
       required: true,
       index: true,
+    },
+    accountBalanceAfter: {
+      type: Number,
     },
     userId: {
       type: String,

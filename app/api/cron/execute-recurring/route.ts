@@ -75,6 +75,8 @@ export async function POST(request: Request) {
             const bankAccount = await getBankAccountById(user.id, subscription.bankAccountId)
             if (!bankAccount) continue
 
+            const newBalance = bankAccount.balance - subscription.amount
+
             // Create transaction
             const transaction = {
               id: uuidv4(),
@@ -85,13 +87,14 @@ export async function POST(request: Request) {
               time: new Date().toTimeString().slice(0, 5),
               description: `${subscription.name} - Subscription payment`,
               bankAccountId: subscription.bankAccountId,
+              accountBalanceAfter: newBalance,
               userId: user.id,
               createdAt: new Date().toISOString(),
             }
 
             await saveTransaction(user.id, transaction)
             await updateBankAccount(user.id, subscription.bankAccountId, {
-              balance: bankAccount.balance - subscription.amount
+              balance: newBalance
             })
 
             const nextExecutionDate = calculateNextExecutionDate(
@@ -130,6 +133,8 @@ export async function POST(request: Request) {
             const bankAccount = await getBankAccountById(user.id, sip.bankAccountId)
             if (!bankAccount) continue
 
+            const newBalance = bankAccount.balance - sip.amount
+
             // Create transaction
             const transaction = {
               id: uuidv4(),
@@ -140,13 +145,14 @@ export async function POST(request: Request) {
               time: new Date().toTimeString().slice(0, 5),
               description: `${sip.name} - SIP Investment`,
               bankAccountId: sip.bankAccountId,
+              accountBalanceAfter: newBalance,
               userId: user.id,
               createdAt: new Date().toISOString(),
             }
 
             await saveTransaction(user.id, transaction)
             await updateBankAccount(user.id, sip.bankAccountId, {
-              balance: bankAccount.balance - sip.amount
+              balance: newBalance
             })
 
             const nextExecutionDate = calculateNextExecutionDate(

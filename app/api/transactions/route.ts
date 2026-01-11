@@ -32,9 +32,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // Calculate new balance
+    const balanceChange = validated.type === "income" ? validated.amount : -validated.amount
+    const newBalance = bankAccount.balance + balanceChange
+
     const transaction = {
       id: uuidv4(),
       ...validated,
+      accountBalanceAfter: newBalance,
       userId: user.id,
       createdAt: new Date().toISOString(),
     }
@@ -42,8 +47,6 @@ export async function POST(request: Request) {
     await saveTransaction(user.id, transaction)
 
     // Update bank account balance
-    const balanceChange = validated.type === "income" ? validated.amount : -validated.amount
-    const newBalance = bankAccount.balance + balanceChange
     await updateBankAccount(user.id, validated.bankAccountId, { balance: newBalance })
 
     return NextResponse.json(transaction, { status: 201 })

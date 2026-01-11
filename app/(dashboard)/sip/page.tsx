@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, TrendingUp, Activity, MoreVertical, Pencil, Trash2 } from "lucide-react"
+import { Plus, TrendingUp, Activity, MoreVertical, Pencil, Trash2, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,7 @@ export default function SIPPage() {
     currentNetValue: undefined as number | undefined,
     adjustments: [] as SIPAdjustment[],
     bankAccountId: "",
+    investmentType: "mutual-fund" as "mutual-fund" | "provident-fund",
   })
   const [showAdjustments, setShowAdjustments] = useState(false)
 
@@ -155,6 +157,7 @@ export default function SIPPage() {
       currentNetValue: sip.currentNetValue,
       adjustments: sip.adjustments || [],
       bankAccountId: sip.bankAccountId || "",
+      investmentType: sip.investmentType || "mutual-fund",
     })
     setIsDialogOpen(true)
   }
@@ -173,6 +176,7 @@ export default function SIPPage() {
       currentNetValue: undefined,
       adjustments: [],
       bankAccountId: defaultAccount?.id || "",
+      investmentType: "mutual-fund",
     })
     setEditingSip(null)
     setShowAdjustments(false)
@@ -285,7 +289,7 @@ export default function SIPPage() {
       if (sip.currentNetValue !== undefined) {
         return sum + sip.currentNetValue
       }
-      
+
       // Calculate net value from total invested and adjustments
       const invested = calculateTotalInvested(sip)
       const adjustmentsTotal = (sip.adjustments || []).reduce((adjSum, adj) => {
@@ -298,9 +302,37 @@ export default function SIPPage() {
         }
         return adjSum
       }, invested)
-      
+
       return sum + adjustmentsTotal
     }, 0)
+
+  // Calculate breakdown by investment type
+  const investmentBreakdown = sips
+    .filter((s) => s.isActive)
+    .reduce((acc, sip) => {
+      const type = sip.investmentType || "mutual-fund"
+      let value = 0
+
+      if (sip.currentNetValue !== undefined) {
+        value = sip.currentNetValue
+      } else {
+        const invested = calculateTotalInvested(sip)
+        const adjustmentsTotal = (sip.adjustments || []).reduce((adjSum, adj) => {
+          if (adj.type === "adjustment") {
+            return adj.amount
+          } else if (adj.type === "deposit") {
+            return adjSum + adj.amount
+          } else if (adj.type === "withdrawal") {
+            return adjSum - adj.amount
+          }
+          return adjSum
+        }, invested)
+        value = adjustmentsTotal
+      }
+
+      acc[type] = (acc[type] || 0) + value
+      return acc
+    }, {} as Record<string, number>)
 
   return (
     <div className="p-6 space-y-6">
@@ -337,7 +369,35 @@ export default function SIPPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total Invested</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              Total Invested
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Investment Breakdown</h4>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Mutual Fund:</span>
+                        <span className="font-medium">₹{(investmentBreakdown["mutual-fund"] || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Provident Fund:</span>
+                        <span className="font-medium">₹{(investmentBreakdown["provident-fund"] || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="border-t pt-1 mt-1 flex justify-between text-sm font-semibold">
+                        <span>Total:</span>
+                        <span>₹{totalInvested.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₹{totalInvested.toLocaleString()}</div>
@@ -487,6 +547,18 @@ export default function SIPPage() {
                         {account.name} {account.isDefault && "(Default)"} - ₹{account.balance.toLocaleString()}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="investmentType">Investment Type *</Label>
+                <Select value={formData.investmentType} onValueChange={(value: "mutual-fund" | "provident-fund") => setFormData({ ...formData, investmentType: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mutual-fund">Mutual Fund</SelectItem>
+                    <SelectItem value="provident-fund">Provident Fund</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

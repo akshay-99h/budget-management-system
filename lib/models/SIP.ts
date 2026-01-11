@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose"
 
 export interface ISIPAdjustment {
-  id: string
+  id?: string
   date: string
   amount: number
   type: "withdrawal" | "deposit" | "adjustment"
@@ -22,6 +22,7 @@ export interface ISIP extends Document {
   nextExecutionDate: string
   currentNetValue?: number
   adjustments?: ISIPAdjustment[]
+  investmentType: "mutual-fund" | "provident-fund"
   userId: string
   createdAt: Date
 }
@@ -88,6 +89,12 @@ const SIPSchema = new Schema<ISIP>(
         description: String,
       },
     ],
+    investmentType: {
+      type: String,
+      enum: ["mutual-fund", "provident-fund"],
+      required: true,
+      default: "mutual-fund",
+    },
     userId: {
       type: String,
       required: true,

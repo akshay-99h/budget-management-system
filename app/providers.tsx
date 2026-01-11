@@ -8,7 +8,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <ThemeProvider>
-        <TourProvider>{children}</TourProvider>
+      <TourProvider>{children}</TourProvider>
       </ThemeProvider>
     </SessionProvider>
   )

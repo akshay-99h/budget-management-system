@@ -1,6 +1,6 @@
 "use client"
 
-import { Transaction } from "@/lib/types"
+import { Transaction, BankAccount } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,21 +22,62 @@ import { useToast } from "@/hooks/use-toast"
 import { transactionSchema, type TransactionInput } from "@/lib/validations"
 import { cn } from "@/lib/utils"
 
-interface TransactionWithBalance extends Transaction {
-  balanceAfterTransaction?: number
-}
-
 interface TransactionListProps {
-  transactions: TransactionWithBalance[]
+  transactions: Transaction[]
+  bankAccounts: BankAccount[]
   onUpdate: () => void
 }
 
-export function TransactionList({ transactions, onUpdate }: TransactionListProps) {
+export function TransactionList({ transactions, bankAccounts, onUpdate }: TransactionListProps) {
   const { toast } = useToast()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+
+  // Calculate overall balance after each transaction
+  // This works by reversing transactions chronologically to get historical balances
+  const calculateOverallBalances = (): Map<string, number> => {
+    const balanceMap = new Map<string, number>()
+
+    // Create a map of current account balances
+    const accountBalances = new Map<string, number>()
+    bankAccounts.forEach(acc => {
+      accountBalances.set(acc.id, acc.balance)
+    })
+
+    // Sort transactions chronologically (oldest first) to reverse them
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
+      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
+      return new Date(dateTimeA).getTime() - new Date(dateTimeB).getTime()
+    })
+
+    // Work backwards from current balances
+    // For each transaction (in reverse chronological order), reverse its effect
+    for (let i = sortedTransactions.length - 1; i >= 0; i--) {
+      const transaction = sortedTransactions[i]
+
+      // Calculate total balance at this point
+      let totalBalance = 0
+      accountBalances.forEach(balance => {
+        totalBalance += balance
+      })
+      balanceMap.set(transaction.id, totalBalance)
+
+      // Reverse this transaction's effect to get historical balance
+      if (transaction.accountBalanceAfter !== undefined) {
+        const currentBalance = accountBalances.get(transaction.bankAccountId) || 0
+        const balanceChange = transaction.type === "income" ? transaction.amount : -transaction.amount
+        const historicalBalance = currentBalance - balanceChange
+        accountBalances.set(transaction.bankAccountId, historicalBalance)
+      }
+    }
+
+    return balanceMap
+  }
+
+  const overallBalances = calculateOverallBalances()
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction)
@@ -134,85 +175,94 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
             onClick={() => handleViewDetails(transaction)}
           >
             <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-2 sm:gap-4">
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 sm:gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div
+                    className={cn(
+                      "h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center shrink-0",
+                      transaction.type === "income"
+                        ? "bg-green-100 dark:bg-green-900/30"
+                        : "bg-red-100 dark:bg-red-900/30"
+                    )}
+                  >
+                    {transaction.type === "income" ? (
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base sm:text-lg truncate">{transaction.category}</p>
+                    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+                      <span>{formatDate(transaction.date)}</span>
+                      {transaction.time && (
+                        <>
+                          <span>•</span>
+                          <span>{transaction.time}</span>
+                        </>
+                      )}
+                      {transaction.description && (
+                        <>
+                          <span className="hidden sm:inline">•</span>
+                          <span className="truncate hidden sm:inline">{transaction.description}</span>
+                        </>
+                      )}
+                    </div>
+                    {transaction.accountBalanceAfter !== undefined && (
+                      <div className="flex flex-col gap-1 text-xs text-muted-foreground mt-1">
+                        <div className="flex items-center gap-1">
+                          <Wallet className="h-3 w-3" />
+                          <span>
+                            {bankAccounts.find(acc => acc.id === transaction.bankAccountId)?.name || 'Account'}: {formatCurrency(transaction.accountBalanceAfter)}
+                          </span>
+                        </div>
+                        {overallBalances.has(transaction.id) && (
+                          <div className="flex items-center gap-1 ml-4">
+                            <span className="text-xs">Total: {formatCurrency(overallBalances.get(transaction.id)!)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div
                       className={cn(
-                        "h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center shrink-0",
+                        "text-lg sm:text-xl font-bold",
                         transaction.type === "income"
-                          ? "bg-green-100 dark:bg-green-900/30"
-                          : "bg-red-100 dark:bg-red-900/30"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
                       )}
                     >
-                      {transaction.type === "income" ? (
-                        <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
-                      )}
+                      {transaction.type === "income" ? "+" : "-"}
+                      {formatCurrency(transaction.amount)}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-base sm:text-lg truncate">{transaction.category}</p>
-                      <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
-                        <span>{formatDate(transaction.date)}</span>
-                        {transaction.time && (
-                          <>
-                            <span>•</span>
-                            <span>{transaction.time}</span>
-                          </>
-                        )}
-                        {transaction.description && (
-                          <>
-                            <span className="hidden sm:inline">•</span>
-                            <span className="truncate hidden sm:inline">{transaction.description}</span>
-                          </>
-                        )}
-                      </div>
-                      {transaction.balanceAfterTransaction !== undefined && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                          <Wallet className="h-3 w-3" />
-                          <span>Balance: {formatCurrency(transaction.balanceAfterTransaction)}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                      <div
-                        className={cn(
-                          "text-lg sm:text-xl font-bold",
-                          transaction.type === "income"
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-red-600 dark:text-red-400"
-                        )}
+                    <div className="flex items-center gap-1 opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEdit(transaction)
+                        }}
+                        className="h-8 w-8 sm:h-9 sm:w-9 touch-manipulation opacity-100 hover:bg-accent"
                       >
-                        {transaction.type === "income" ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEdit(transaction)
-                          }}
-                          className="h-8 w-8 sm:h-9 sm:w-9 opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(transaction.id)
-                          }}
-                          className="h-8 w-8 sm:h-9 sm:w-9 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive touch-manipulation"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(transaction.id)
+                        }}
+                        className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive hover:bg-destructive/10 touch-manipulation opacity-100"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -303,17 +353,36 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
                   </div>
                 </div>
 
-                {selectedTransaction.balanceAfterTransaction !== undefined && (
-                  <div className="p-3 rounded-lg border-2 bg-muted/20">
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-muted-foreground">Balance After Transaction</p>
-                        <p className="text-lg font-bold">
-                          {formatCurrency(selectedTransaction.balanceAfterTransaction)}
-                        </p>
+                {selectedTransaction.accountBalanceAfter !== undefined && (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg border-2 bg-muted/20">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {bankAccounts.find(acc => acc.id === selectedTransaction.bankAccountId)?.name || 'Account'} Balance After
+                          </p>
+                          <p className="text-lg font-bold">
+                            {formatCurrency(selectedTransaction.accountBalanceAfter)}
+                          </p>
+                        </div>
                       </div>
                     </div>
+                    {overallBalances.has(selectedTransaction.id) && (
+                      <div className="p-3 rounded-lg border-2 bg-muted/20">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Total Balance After
+                            </p>
+                            <p className="text-lg font-bold">
+                              {formatCurrency(overallBalances.get(selectedTransaction.id)!)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

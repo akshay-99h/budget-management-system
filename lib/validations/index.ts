@@ -113,6 +113,7 @@ export const sipSchema = z.object({
     .optional(),
   adjustments: z.array(sipAdjustmentSchema).optional(),
   bankAccountId: z.string().min(1, "Bank account is required"),
+  investmentType: z.enum(["mutual-fund", "provident-fund"]).default("mutual-fund"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

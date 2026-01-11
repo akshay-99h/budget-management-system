@@ -59,10 +59,10 @@ export function Navbar() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggleSimple />
-            <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/login" })}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign out
-            </Button>
+          <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out
+          </Button>
           </div>
         </div>
       </div>

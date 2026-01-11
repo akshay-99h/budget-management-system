@@ -1,14 +1,10 @@
 "use client"
 
-import { Transaction, Loan } from "@/lib/types"
+import { Transaction, Loan, BankAccount } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { TrendingUp, TrendingDown, HandCoins, ArrowRight, Wallet } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-
-interface TransactionWithBalance extends Transaction {
-  balanceAfterTransaction?: number
-}
 
 interface ActivityItem {
   id: string
@@ -21,16 +17,60 @@ interface ActivityItem {
   transactionType?: "income" | "expense"
   loanStatus?: string
   borrower?: string
-  balanceAfterTransaction?: number
+  accountBalanceAfter?: number
+  bankAccountId?: string
 }
 
 interface ActivityListProps {
-  transactions: TransactionWithBalance[]
+  transactions: Transaction[]
   loans: Loan[]
+  bankAccounts: BankAccount[]
   limit?: number
 }
 
-export function ActivityList({ transactions, loans, limit }: ActivityListProps) {
+export function ActivityList({ transactions, loans, bankAccounts, limit }: ActivityListProps) {
+  // Calculate overall balance after each transaction
+  const calculateOverallBalances = (): Map<string, number> => {
+    const balanceMap = new Map<string, number>()
+    
+    // Create a map of current account balances
+    const accountBalances = new Map<string, number>()
+    bankAccounts.forEach(acc => {
+      accountBalances.set(acc.id, acc.balance)
+    })
+
+    // Sort transactions chronologically (oldest first) to reverse them
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
+      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
+      return new Date(dateTimeA).getTime() - new Date(dateTimeB).getTime()
+    })
+
+    // Work backwards from current balances
+    for (let i = sortedTransactions.length - 1; i >= 0; i--) {
+      const transaction = sortedTransactions[i]
+      
+      // Calculate total balance at this point
+      let totalBalance = 0
+      accountBalances.forEach(balance => {
+        totalBalance += balance
+      })
+      balanceMap.set(transaction.id, totalBalance)
+
+      // Reverse this transaction's effect to get historical balance
+      if (transaction.accountBalanceAfter !== undefined) {
+        const currentBalance = accountBalances.get(transaction.bankAccountId) || 0
+        const balanceChange = transaction.type === "income" ? transaction.amount : -transaction.amount
+        const historicalBalance = currentBalance - balanceChange
+        accountBalances.set(transaction.bankAccountId, historicalBalance)
+      }
+    }
+
+    return balanceMap
+  }
+
+  const overallBalances = calculateOverallBalances()
+
   // Combine transactions and loans into a single activity list
   const activities: ActivityItem[] = [
     ...transactions.map((t) => ({
@@ -42,7 +82,8 @@ export function ActivityList({ transactions, loans, limit }: ActivityListProps) 
       description: t.description || "",
       amount: t.amount,
       transactionType: t.type,
-      balanceAfterTransaction: t.balanceAfterTransaction,
+      accountBalanceAfter: t.accountBalanceAfter,
+      bankAccountId: t.bankAccountId,
     })),
     ...loans.map((l) => ({
       id: l.id,
@@ -124,10 +165,19 @@ export function ActivityList({ transactions, loans, limit }: ActivityListProps) 
                       {activity.time && ` • ${activity.time}`}
                       {activity.description && ` • ${activity.description}`}
                     </p>
-                    {isTransaction && activity.balanceAfterTransaction !== undefined && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                        <Wallet className="h-3 w-3" />
-                        <span>Balance: {formatCurrency(activity.balanceAfterTransaction)}</span>
+                    {isTransaction && activity.accountBalanceAfter !== undefined && (
+                      <div className="flex flex-col gap-1 text-xs text-muted-foreground mt-1">
+                        <div className="flex items-center gap-1">
+                          <Wallet className="h-3 w-3" />
+                          <span>
+                            {bankAccounts.find(acc => acc.id === activity.bankAccountId)?.name || 'Account'}: {formatCurrency(activity.accountBalanceAfter)}
+                          </span>
+                        </div>
+                        {overallBalances.has(activity.id) && (
+                          <div className="flex items-center gap-1 ml-4">
+                            <span className="text-xs">Total: {formatCurrency(overallBalances.get(activity.id)!)}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

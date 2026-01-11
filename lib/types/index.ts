@@ -7,6 +7,7 @@ export type Transaction = {
   time?: string
   description?: string
   bankAccountId: string
+  accountBalanceAfter?: number
   userId: string
   createdAt: string
 }
@@ -38,7 +39,7 @@ export type Loan = {
 }
 
 export type SIPAdjustment = {
-  id: string
+  id?: string
   date: string
   amount: number
   type: "withdrawal" | "deposit" | "adjustment"
@@ -60,6 +61,7 @@ export type SIP = {
   currentNetValue?: number
   adjustments?: SIPAdjustment[]
   bankAccountId: string
+  investmentType: "mutual-fund" | "provident-fund"
   userId: string
   createdAt: string
 }

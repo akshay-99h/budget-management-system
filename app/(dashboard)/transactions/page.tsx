@@ -159,46 +159,17 @@ export default function TransactionsPage() {
     }
   }
 
-  // Calculate running balance for each transaction
-  const calculateTransactionBalances = () => {
-    // Get total current balance from all bank accounts
-    const currentTotalBalance = bankAccounts.reduce((sum, account) => sum + account.balance, 0)
-
-    // Sort all transactions by date/time (newest first)
-    const sortedTransactions = [...transactions].sort((a, b) => {
-      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
-      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
-      return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime()
-    })
-
-    // Calculate balance after each transaction (working backwards from current balance)
-    let runningBalance = currentTotalBalance
-    const transactionsWithBalance = sortedTransactions.map((transaction) => {
-      const balanceAfterTransaction = runningBalance
-
-      // Update running balance for next iteration (going backwards in time)
-      if (transaction.type === "income") {
-        runningBalance -= transaction.amount // Remove this income to get previous balance
-      } else {
-        runningBalance += transaction.amount // Add back this expense to get previous balance
-      }
-
-      return {
-        ...transaction,
-        balanceAfterTransaction,
-      }
-    })
-
-    return transactionsWithBalance
-  }
-
-  const transactionsWithBalances = calculateTransactionBalances()
-
-  const filteredTransactions = transactionsWithBalances
+  const filteredTransactions = transactions
     .filter((t) => {
       if (filterType !== "all" && t.type !== filterType) return false
       if (filterCategory !== "all" && t.category !== filterCategory) return false
       return true
+    })
+    .sort((a, b) => {
+      // Sort by date and time (most recent first)
+      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
+      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
+      return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime()
     })
 
   console.log("[TransactionPage] Filter settings - Type:", filterType, "Category:", filterCategory)
@@ -290,7 +261,7 @@ export default function TransactionsPage() {
 
           {/* Unified Activity List */}
           <div data-tour="activity-list">
-            <ActivityList transactions={transactionsWithBalances} loans={loans} limit={20} />
+            <ActivityList transactions={transactions} loans={loans} bankAccounts={bankAccounts} limit={20} />
           </div>
         </div>
 
@@ -430,6 +401,7 @@ export default function TransactionsPage() {
         <div data-tour="transaction-list">
           <TransactionList
             transactions={filteredTransactions}
+            bankAccounts={bankAccounts}
             onUpdate={fetchTransactions}
           />
         </div>
