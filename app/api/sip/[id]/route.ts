@@ -13,6 +13,10 @@ export async function PUT(
     const user = await requireAuth()
     const { id } = await params
     const body = await request.json()
+    
+    // Debug: Log what we receive
+    console.log('PUT /api/sip/[id] - Received body:', { ...body, bankAccountId: body.bankAccountId })
+    
     const validated = sipSchema.partial().parse(body)
 
     const existing = await getSIPById(user.id, id)
@@ -38,12 +42,33 @@ export async function PUT(
         }))
       : undefined
 
-    const updates = {
+    const updates: any = {
       ...validated,
       nextExecutionDate,
       ...(adjustments !== undefined && { adjustments }),
       ...(validated.currentNetValue !== undefined && { currentNetValue: validated.currentNetValue }),
     }
+    
+    // Always include bankAccountId if it's in the request body (check raw body first)
+    // This ensures it's included even if validation filtered it out
+    if ('bankAccountId' in body && typeof body.bankAccountId === 'string') {
+      if (body.bankAccountId.length > 0) {
+        updates.bankAccountId = body.bankAccountId
+        console.log('PUT /api/sip/[id] - Setting bankAccountId:', body.bankAccountId)
+      } else {
+        // Empty string - this should not happen if frontend validation works
+        console.error('PUT /api/sip/[id] - ERROR: bankAccountId is empty string in request body')
+        // Don't update it - keep existing value by not including it in updates
+      }
+    } else if (validated.bankAccountId && validated.bankAccountId.length > 0) {
+      // Fallback to validated if it passed validation
+      updates.bankAccountId = validated.bankAccountId
+      console.log('PUT /api/sip/[id] - Using validated bankAccountId:', validated.bankAccountId)
+    } else {
+      console.warn('PUT /api/sip/[id] - No valid bankAccountId in request, keeping existing value')
+    }
+    
+    console.log('PUT /api/sip/[id] - Final updates object:', { ...updates, bankAccountId: updates.bankAccountId })
 
     await updateSIP(user.id, id, updates)
     const updated = await getSIPById(user.id, id)

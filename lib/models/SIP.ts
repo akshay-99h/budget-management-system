@@ -23,6 +23,7 @@ export interface ISIP extends Document {
   currentNetValue?: number
   adjustments?: ISIPAdjustment[]
   investmentType: "mutual-fund" | "provident-fund"
+  bankAccountId: string
   userId: string
   createdAt: Date
 }
@@ -94,6 +95,11 @@ const SIPSchema = new Schema<ISIP>(
       enum: ["mutual-fund", "provident-fund"],
       required: true,
       default: "mutual-fund",
+    },
+    bankAccountId: {
+      type: String,
+      required: true,
+      index: true,
     },
     userId: {
       type: String,

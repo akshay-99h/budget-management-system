@@ -35,8 +35,10 @@ export async function getTransactions(userId: string): Promise<Transaction[]> {
     amount: t.amount,
     category: t.category,
     date: t.date,
+    time: t.time,
     description: t.description,
     bankAccountId: t.bankAccountId,
+    accountBalanceAfter: t.accountBalanceAfter,
     userId: t.userId,
     createdAt: t.createdAt.toISOString(),
   }));
@@ -56,8 +58,10 @@ export async function saveTransaction(
       amount: transaction.amount,
       category: transaction.category,
       date: transaction.date,
+      time: transaction.time,
       description: transaction.description,
       bankAccountId: transaction.bankAccountId,
+      accountBalanceAfter: transaction.accountBalanceAfter,
       userId,
       createdAt: new Date(transaction.createdAt),
     },
@@ -326,7 +330,7 @@ export async function getSIPs(userId: string): Promise<SIP[]> {
   const sips = await SIPModel.find({ userId })
     .sort({ createdAt: -1 })
     .lean();
-  return sips.map((s) => ({
+  return sips.map((s: any) => ({
     id: s.id,
     name: s.name,
     amount: s.amount,
@@ -340,7 +344,7 @@ export async function getSIPs(userId: string): Promise<SIP[]> {
     nextExecutionDate: s.nextExecutionDate,
     currentNetValue: s.currentNetValue,
     adjustments: s.adjustments || [],
-    bankAccountId: s.bankAccountId,
+    bankAccountId: s.bankAccountId ?? "",
     investmentType: s.investmentType || "mutual-fund",
     userId: s.userId,
     createdAt: s.createdAt.toISOString(),
@@ -354,24 +358,25 @@ export async function getSIPById(
   await ensureConnection();
   const sip = await SIPModel.findOne({ id, userId }).lean();
   if (!sip) return null;
+  const sipAny = sip as any;
   return {
-    id: sip.id,
-    name: sip.name,
-    amount: sip.amount,
-    frequency: sip.frequency,
-    startDate: sip.startDate,
-    endDate: sip.endDate,
-    category: sip.category,
-    description: sip.description,
-    isActive: sip.isActive,
-    lastExecuted: sip.lastExecuted,
-    nextExecutionDate: sip.nextExecutionDate,
-    currentNetValue: sip.currentNetValue,
-    adjustments: sip.adjustments || [],
-    bankAccountId: sip.bankAccountId,
-    investmentType: sip.investmentType || "mutual-fund",
-    userId: sip.userId,
-    createdAt: sip.createdAt.toISOString(),
+    id: sipAny.id,
+    name: sipAny.name,
+    amount: sipAny.amount,
+    frequency: sipAny.frequency,
+    startDate: sipAny.startDate,
+    endDate: sipAny.endDate,
+    category: sipAny.category,
+    description: sipAny.description,
+    isActive: sipAny.isActive,
+    lastExecuted: sipAny.lastExecuted,
+    nextExecutionDate: sipAny.nextExecutionDate,
+    currentNetValue: sipAny.currentNetValue,
+    adjustments: sipAny.adjustments || [],
+    bankAccountId: sipAny.bankAccountId ?? "",
+    investmentType: sipAny.investmentType || "mutual-fund",
+    userId: sipAny.userId,
+    createdAt: sipAny.createdAt.toISOString(),
   };
 }
 
@@ -393,6 +398,8 @@ export async function saveSIP(userId: string, sip: SIP): Promise<void> {
       nextExecutionDate: sip.nextExecutionDate,
       currentNetValue: sip.currentNetValue,
       adjustments: sip.adjustments || [],
+      bankAccountId: sip.bankAccountId,
+      investmentType: sip.investmentType || "mutual-fund",
       userId,
       createdAt: new Date(sip.createdAt),
     },

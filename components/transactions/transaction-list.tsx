@@ -23,61 +23,131 @@ import { transactionSchema, type TransactionInput } from "@/lib/validations"
 import { cn } from "@/lib/utils"
 
 interface TransactionListProps {
-  transactions: Transaction[]
+  transactions: Transaction[] // Filtered transactions to display
+  allTransactions: Transaction[] // All transactions for balance calculation
   bankAccounts: BankAccount[]
   onUpdate: () => void
 }
 
-export function TransactionList({ transactions, bankAccounts, onUpdate }: TransactionListProps) {
+export function TransactionList({ transactions, allTransactions, bankAccounts, onUpdate }: TransactionListProps) {
   const { toast } = useToast()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
 
-  // Calculate overall balance after each transaction
-  // This works by reversing transactions chronologically to get historical balances
-  const calculateOverallBalances = (): Map<string, number> => {
-    const balanceMap = new Map<string, number>()
+  // Calculate account balances and overall balances after each transaction
+  // Works forward from newest to oldest (matching display order)
+  // Uses current bank account balances as the source of truth
+  const calculateBalances = (): { accountBalances: Map<string, number>, overallBalances: Map<string, number> } => {
+    const accountBalanceMap = new Map<string, number>()
+    const overallBalanceMap = new Map<string, number>()
 
-    // Create a map of current account balances
+    // Create a map of current account balances from bankAccounts (source of truth)
+    // This ensures manual balance adjustments are reflected
     const accountBalances = new Map<string, number>()
     bankAccounts.forEach(acc => {
       accountBalances.set(acc.id, acc.balance)
     })
 
-    // Sort transactions chronologically (oldest first) to reverse them
-    const sortedTransactions = [...transactions].sort((a, b) => {
+    // Sort ALL transactions by date/time (newest first, matching display order)
+    // We need all transactions to calculate balances correctly
+    const sortedTransactions = [...allTransactions].sort((a, b) => {
       const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
       const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
-      return new Date(dateTimeA).getTime() - new Date(dateTimeB).getTime()
+      return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime() // Newest first
     })
 
-    // Work backwards from current balances
-    // For each transaction (in reverse chronological order), reverse its effect
-    for (let i = sortedTransactions.length - 1; i >= 0; i--) {
+    // Track the last calculated balance for each account
+    // Start with current balances (for the newest transaction on each account)
+    const lastBalances = new Map<string, number>()
+    bankAccounts.forEach(acc => {
+      lastBalances.set(acc.id, acc.balance) // Start with current balance
+    })
+
+    // Track the total balance separately
+    // Start with current total balance (sum of all accounts)
+    let currentTotalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0)
+
+    // Work forward from newest to oldest (top to bottom in display)
+    for (let i = 0; i < sortedTransactions.length; i++) {
       const transaction = sortedTransactions[i]
 
-      // Calculate total balance at this point
-      let totalBalance = 0
-      accountBalances.forEach(balance => {
-        totalBalance += balance
-      })
-      balanceMap.set(transaction.id, totalBalance)
-
-      // Reverse this transaction's effect to get historical balance
-      if (transaction.accountBalanceAfter !== undefined) {
-        const currentBalance = accountBalances.get(transaction.bankAccountId) || 0
-        const balanceChange = transaction.type === "income" ? transaction.amount : -transaction.amount
-        const historicalBalance = currentBalance - balanceChange
-        accountBalances.set(transaction.bankAccountId, historicalBalance)
+      // Get the account for this transaction
+      const account = bankAccounts.find(acc => acc.id === transaction.bankAccountId)
+      if (!account) {
+        // Skip if account not found
+        continue
       }
+
+      // Get the last balance calculated for this account
+      const lastBalance = lastBalances.get(transaction.bankAccountId) || account.balance
+
+      // Find the most recent transaction on this same account (newer than current, if any)
+      let previousTransactionOnSameAccount: Transaction | null = null
+      for (let j = i - 1; j >= 0; j--) {
+        if (sortedTransactions[j].bankAccountId === transaction.bankAccountId) {
+          previousTransactionOnSameAccount = sortedTransactions[j]
+          break
+        }
+      }
+
+      let accountBalanceAfter: number
+      if (previousTransactionOnSameAccount) {
+        // Calculate based on previous transaction on same account
+        // Get the previous transaction's amount
+        const previousAmount = previousTransactionOnSameAccount.type === "income"
+          ? previousTransactionOnSameAccount.amount
+          : -previousTransactionOnSameAccount.amount
+
+        // If previous amount is negative (expense), add it; if positive (income), subtract it
+        // For negative: lastBalance + (-amount) = lastBalance - amount (adds negative = subtracts)
+        // For positive: lastBalance - (+amount) = lastBalance - amount (subtracts positive)
+        // So: balance = lastBalance - previousAmount
+        accountBalanceAfter = lastBalance - previousAmount
+      } else {
+        // This is the newest transaction on this account, use current balance
+        accountBalanceAfter = account.balance
+      }
+
+      // Update the last balance for this account
+      lastBalances.set(transaction.bankAccountId, accountBalanceAfter)
+
+      // Store the balance for this transaction
+      accountBalanceMap.set(transaction.id, accountBalanceAfter)
+
+      // Calculate total balance AFTER this transaction
+      // For the newest transaction (i === 0), use current total
+      // For older transactions, reverse the effect of the previous transaction on the total
+      let totalBalance: number
+      if (i === 0) {
+        // Newest transaction: total = current total balance
+        totalBalance = currentTotalBalance
+      } else {
+        // Older transaction: reverse the effect of the previous transaction
+        // Get the previous transaction's amount (negative for expense, positive for income)
+        const previousTransaction = sortedTransactions[i - 1]
+        const previousAmount = previousTransaction.type === "income"
+          ? previousTransaction.amount
+          : -previousTransaction.amount
+
+        // Reverse: total = previousTotal - previousAmount
+        // For expense (negative): previousTotal - (-amount) = previousTotal + amount (adds)
+        // For income (positive): previousTotal - (+amount) = previousTotal - amount (subtracts)
+        totalBalance = currentTotalBalance - previousAmount
+      }
+
+      // Update current total balance for next iteration
+      currentTotalBalance = totalBalance
+
+      // Store the total balance for this transaction
+      overallBalanceMap.set(transaction.id, totalBalance)
     }
 
-    return balanceMap
+    return { accountBalances: accountBalanceMap, overallBalances: overallBalanceMap }
   }
 
-  const overallBalances = calculateOverallBalances()
+  const { accountBalances: calculatedAccountBalances, overallBalances } = calculateBalances()
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction)
@@ -208,12 +278,12 @@ export function TransactionList({ transactions, bankAccounts, onUpdate }: Transa
                         </>
                       )}
                     </div>
-                    {transaction.accountBalanceAfter !== undefined && (
+                    {calculatedAccountBalances.has(transaction.id) && (
                       <div className="flex flex-col gap-1 text-xs text-muted-foreground mt-1">
                         <div className="flex items-center gap-1">
                           <Wallet className="h-3 w-3" />
                           <span>
-                            {bankAccounts.find(acc => acc.id === transaction.bankAccountId)?.name || 'Account'}: {formatCurrency(transaction.accountBalanceAfter)}
+                            {bankAccounts.find(acc => acc.id === transaction.bankAccountId)?.name || 'Account'}: {formatCurrency(calculatedAccountBalances.get(transaction.id)!)}
                           </span>
                         </div>
                         {overallBalances.has(transaction.id) && (
@@ -353,7 +423,7 @@ export function TransactionList({ transactions, bankAccounts, onUpdate }: Transa
                   </div>
                 </div>
 
-                {selectedTransaction.accountBalanceAfter !== undefined && (
+                {calculatedAccountBalances.has(selectedTransaction.id) && (
                   <div className="space-y-3">
                     <div className="p-3 rounded-lg border-2 bg-muted/20">
                       <div className="flex items-center gap-2">
@@ -363,7 +433,7 @@ export function TransactionList({ transactions, bankAccounts, onUpdate }: Transa
                             {bankAccounts.find(acc => acc.id === selectedTransaction.bankAccountId)?.name || 'Account'} Balance After
                           </p>
                           <p className="text-lg font-bold">
-                            {formatCurrency(selectedTransaction.accountBalanceAfter)}
+                            {formatCurrency(calculatedAccountBalances.get(selectedTransaction.id)!)}
                           </p>
                         </div>
                       </div>

@@ -29,47 +29,76 @@ interface ActivityListProps {
 }
 
 export function ActivityList({ transactions, loans, bankAccounts, limit }: ActivityListProps) {
-  // Calculate overall balance after each transaction
-  const calculateOverallBalances = (): Map<string, number> => {
-    const balanceMap = new Map<string, number>()
+  // Calculate account balances and overall balances after each transaction
+  // Uses current bank account balances as the source of truth
+  const calculateBalances = (): { accountBalances: Map<string, number>, overallBalances: Map<string, number> } => {
+    const accountBalanceMap = new Map<string, number>()
+    const overallBalanceMap = new Map<string, number>()
     
-    // Create a map of current account balances
+    // Create a map of current account balances from bankAccounts (source of truth)
+    // This ensures manual balance adjustments are reflected
     const accountBalances = new Map<string, number>()
     bankAccounts.forEach(acc => {
       accountBalances.set(acc.id, acc.balance)
     })
 
-    // Sort transactions chronologically (oldest first) to reverse them
+    // Sort transactions chronologically (oldest first) so we can reverse them
     const sortedTransactions = [...transactions].sort((a, b) => {
       const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
       const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
       return new Date(dateTimeA).getTime() - new Date(dateTimeB).getTime()
     })
 
-    // Work backwards from current balances
+    // Work backwards from current balances (newest to oldest)
+    // For each transaction, calculate what the balance was AFTER that transaction
     for (let i = sortedTransactions.length - 1; i >= 0; i--) {
       const transaction = sortedTransactions[i]
       
-      // Calculate total balance at this point
+      // Get the account for this transaction
+      const account = bankAccounts.find(acc => acc.id === transaction.bankAccountId)
+      if (!account) {
+        // Skip if account not found
+        continue
+      }
+
+      // Current balance of this account (balance NOW, after all subsequent transactions)
+      const currentBalance = accountBalances.get(transaction.bankAccountId) || 0
+      
+      // Calculate what the balance was AFTER this transaction (before subsequent transactions)
+      // Working backwards: currentBalance is the balance NOW (after all subsequent transactions)
+      // To find balance after this transaction: add income, subtract expense
+      // For income: balanceAfter = currentBalance + incomeAmount
+      // For expense: balanceAfter = currentBalance - expenseAmount
+      let accountBalanceAfter: number
+      if (transaction.type === "income") {
+        // Income increases balance, so balance after income = current + income
+        accountBalanceAfter = currentBalance + transaction.amount
+      } else {
+        // Expense decreases balance, so balance after expense = current - expense
+        accountBalanceAfter = currentBalance - transaction.amount
+      }
+
+      // Temporarily update the account balance to calculate the total after this transaction
+      accountBalances.set(transaction.bankAccountId, accountBalanceAfter)
+
+      // Calculate total balance across all accounts AFTER this transaction
       let totalBalance = 0
       accountBalances.forEach(balance => {
         totalBalance += balance
       })
-      balanceMap.set(transaction.id, totalBalance)
+      
+      // Store the balances for this transaction
+      accountBalanceMap.set(transaction.id, accountBalanceAfter)
+      overallBalanceMap.set(transaction.id, totalBalance)
 
-      // Reverse this transaction's effect to get historical balance
-      if (transaction.accountBalanceAfter !== undefined) {
-        const currentBalance = accountBalances.get(transaction.bankAccountId) || 0
-        const balanceChange = transaction.type === "income" ? transaction.amount : -transaction.amount
-        const historicalBalance = currentBalance - balanceChange
-        accountBalances.set(transaction.bankAccountId, historicalBalance)
-      }
+      // Keep the updated balance for the next (older) transaction iteration
+      // (accountBalances is already updated above)
     }
 
-    return balanceMap
+    return { accountBalances: accountBalanceMap, overallBalances: overallBalanceMap }
   }
 
-  const overallBalances = calculateOverallBalances()
+  const { accountBalances: calculatedAccountBalances, overallBalances } = calculateBalances()
 
   // Combine transactions and loans into a single activity list
   const activities: ActivityItem[] = [
@@ -82,7 +111,7 @@ export function ActivityList({ transactions, loans, bankAccounts, limit }: Activ
       description: t.description || "",
       amount: t.amount,
       transactionType: t.type,
-      accountBalanceAfter: t.accountBalanceAfter,
+      accountBalanceAfter: calculatedAccountBalances.get(t.id),
       bankAccountId: t.bankAccountId,
     })),
     ...loans.map((l) => ({
@@ -168,7 +197,7 @@ export function ActivityList({ transactions, loans, bankAccounts, limit }: Activ
                     {isTransaction && activity.accountBalanceAfter !== undefined && (
                       <div className="flex flex-col gap-1 text-xs text-muted-foreground mt-1">
                         <div className="flex items-center gap-1">
-                          <Wallet className="h-3 w-3" />
+                        <Wallet className="h-3 w-3" />
                           <span>
                             {bankAccounts.find(acc => acc.id === activity.bankAccountId)?.name || 'Account'}: {formatCurrency(activity.accountBalanceAfter)}
                           </span>

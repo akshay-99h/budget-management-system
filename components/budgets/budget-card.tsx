@@ -53,7 +53,7 @@ export function BudgetCard({ budget, spent, onDelete }: BudgetCardProps) {
             variant="ghost"
             size="icon"
             onClick={() => onDelete(budget.id)}
-            className="h-9 w-9 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+            className="h-9 w-9 opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 touch-manipulation"
           >
             <Trash2 className="h-4 w-4" />
           </Button>

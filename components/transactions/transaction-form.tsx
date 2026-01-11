@@ -75,6 +75,10 @@ export function TransactionForm({
             const defaultAccount = data.find((acc: BankAccount) => acc.isDefault) || data[0]
             setValue("bankAccountId", defaultAccount.id)
           }
+          // When editing, ensure the transaction's bankAccountId is set
+          if (transaction && transaction.bankAccountId) {
+            setValue("bankAccountId", transaction.bankAccountId)
+          }
         }
       } catch (error) {
         console.error("Failed to fetch bank accounts:", error)
@@ -83,6 +87,20 @@ export function TransactionForm({
       }
     }
     fetchBankAccounts()
+  }, [transaction, setValue])
+
+  // Reset form values when transaction changes (for editing)
+  useEffect(() => {
+    if (transaction) {
+      setValue("type", transaction.type)
+      setValue("amount", transaction.amount)
+      setValue("category", transaction.category)
+      setValue("date", transaction.date)
+      setValue("time", transaction.time || "")
+      setValue("description", transaction.description || "")
+      setValue("bankAccountId", transaction.bankAccountId || "")
+      setSelectedType(transaction.type)
+    }
   }, [transaction, setValue])
 
   const type = watch("type")

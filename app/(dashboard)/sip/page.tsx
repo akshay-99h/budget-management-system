@@ -61,6 +61,54 @@ export default function SIPPage() {
     fetchBankAccounts()
   }, [])
 
+  // Set default bank account when bank accounts are first loaded (only for new SIPs)
+  const [bankAccountsInitialized, setBankAccountsInitialized] = useState(false)
+  useEffect(() => {
+    if (bankAccounts.length > 0 && !bankAccountsInitialized) {
+      setBankAccountsInitialized(true)
+      if (!editingSip) {
+        // Only set default for new SIPs when bank accounts are first loaded
+        const defaultAccount = bankAccounts.find(acc => acc.isDefault) || bankAccounts[0]
+        if (defaultAccount) {
+          setFormData(prev => {
+            // Only set if it's currently empty
+            if (prev.bankAccountId === "") {
+              return { ...prev, bankAccountId: defaultAccount.id }
+            }
+            return prev
+          })
+        }
+      }
+    }
+  }, [bankAccounts.length, bankAccountsInitialized, editingSip])
+
+  // When editing a SIP, set the bankAccountId from the SIP (only once when editingSip changes)
+  const [lastEditingSipId, setLastEditingSipId] = useState<string | null>(null)
+  useEffect(() => {
+    if (editingSip && editingSip.id !== lastEditingSipId && bankAccounts.length > 0) {
+      setLastEditingSipId(editingSip.id)
+      if (editingSip.bankAccountId) {
+        const accountExists = bankAccounts.some(acc => acc.id === editingSip.bankAccountId)
+        if (accountExists) {
+          // Set the bankAccountId from the SIP being edited
+          setFormData(prev => ({ ...prev, bankAccountId: editingSip.bankAccountId }))
+        } else {
+          // If the account doesn't exist, set to default
+          const defaultAccount = bankAccounts.find(acc => acc.isDefault) || bankAccounts[0]
+          if (defaultAccount) {
+            setFormData(prev => ({ ...prev, bankAccountId: defaultAccount.id }))
+          }
+        }
+      } else {
+        // If SIP has no bankAccountId, set to default
+        const defaultAccount = bankAccounts.find(acc => acc.isDefault) || bankAccounts[0]
+        if (defaultAccount) {
+          setFormData(prev => ({ ...prev, bankAccountId: defaultAccount.id }))
+        }
+      }
+    }
+  }, [editingSip?.id, lastEditingSipId, bankAccounts])
+
   const fetchSIPs = async () => {
     try {
       const response = await fetch("/api/sip")
@@ -97,14 +145,41 @@ export default function SIPPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Get the current formData value to ensure we have the latest
+    const currentFormData = { ...formData }
+    
+    // Validate bankAccountId before submitting
+    if (!currentFormData.bankAccountId || currentFormData.bankAccountId === "") {
+      toast({
+        title: "Error",
+        description: "Please select a bank account",
+        variant: "destructive",
+      })
+      return
+    }
+    
     try {
       const url = editingSip ? `/api/sip/${editingSip.id}` : "/api/sip"
       const method = editingSip ? "PUT" : "POST"
 
+      // Ensure bankAccountId is included in the request - use currentFormData to avoid stale closures
+      const dataToSend = {
+        ...currentFormData,
+        bankAccountId: currentFormData.bankAccountId, // Explicitly include it
+      }
+      
+      // Debug: Log what we're sending
+      console.log('Sending SIP data:', { 
+        ...dataToSend, 
+        bankAccountId: currentFormData.bankAccountId,
+        bankAccountIdLength: currentFormData.bankAccountId?.length 
+      })
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       })
 
       if (response.ok) {
@@ -537,7 +612,17 @@ export default function SIPPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankAccountId">Bank Account *</Label>
-                <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({ ...formData, bankAccountId: value })}>
+                <Select 
+                  value={formData.bankAccountId} 
+                  onValueChange={(value) => {
+                    console.log('Bank account selected:', value)
+                    setFormData(prev => {
+                      const updated = { ...prev, bankAccountId: value }
+                      console.log('Updated formData.bankAccountId:', updated.bankAccountId)
+                      return updated
+                    })
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a bank account" />
                   </SelectTrigger>
@@ -549,6 +634,11 @@ export default function SIPPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {formData.bankAccountId && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {bankAccounts.find(acc => acc.id === formData.bankAccountId)?.name || formData.bankAccountId}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="investmentType">Investment Type *</Label>

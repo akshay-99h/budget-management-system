@@ -45,6 +45,7 @@ export async function POST(request: Request) {
               amount: record.amount,
               category: record.category,
               date: record.date,
+              time: record.time,
               description: record.description,
               bankAccountId: record.bankAccountId,
             })

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { Transaction, Loan, BankAccount } from "@/lib/types"
+import { formatCurrency } from "@/lib/utils"
 import { TransactionList } from "@/components/transactions/transaction-list"
 import { ActivityList } from "@/components/dashboard/activity-list"
 import { Button } from "@/components/ui/button"
-import { Plus, Receipt, Filter, Target, HandCoins, Wifi, WifiOff } from "lucide-react"
+import { Plus, Receipt, Filter, Target, HandCoins, Wifi, WifiOff, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,7 @@ import { useToast } from "@/hooks/use-toast"
 import { transactionSchema, type TransactionInput } from "@/lib/validations"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isPWA } from "@/lib/pwa-utils"
 import Link from "next/link"
@@ -171,6 +172,16 @@ export default function TransactionsPage() {
       const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
       return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime()
     })
+
+  // Calculate summary statistics
+  const totalIncome = filteredTransactions
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0)
+  const totalExpenses = filteredTransactions
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0)
+  const netBalance = totalIncome - totalExpenses
+  const totalBalance = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0)
 
   console.log("[TransactionPage] Filter settings - Type:", filterType, "Category:", filterCategory)
   console.log("[TransactionPage] Total transactions:", transactions.length)
@@ -363,6 +374,55 @@ export default function TransactionsPage() {
           </Dialog>
         </div>
 
+        {/* Summary Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome)}</div>
+              <p className="text-xs text-muted-foreground mt-1">From filtered transactions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</div>
+              <p className="text-xs text-muted-foreground mt-1">From filtered transactions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(netBalance)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Income - Expenses</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(totalBalance)}</div>
+              <p className="text-xs text-muted-foreground mt-1">Across all accounts</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Filters */}
         <Card data-tour="filters" className="p-4 border-2">
           <div className="flex items-center gap-4 flex-wrap">
@@ -401,6 +461,7 @@ export default function TransactionsPage() {
         <div data-tour="transaction-list">
           <TransactionList
             transactions={filteredTransactions}
+            allTransactions={transactions}
             bankAccounts={bankAccounts}
             onUpdate={fetchTransactions}
           />
