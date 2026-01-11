@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Transaction, Loan } from "@/lib/types"
+import { Transaction, Loan, BankAccount } from "@/lib/types"
 import { TransactionList } from "@/components/transactions/transaction-list"
 import { ActivityList } from "@/components/dashboard/activity-list"
 import { Button } from "@/components/ui/button"
@@ -32,6 +32,7 @@ import { v4 as uuidv4 } from "uuid"
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loans, setLoans] = useState<Loan[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>("all")
@@ -100,8 +101,20 @@ export default function TransactionsPage() {
     }
   }
 
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await fetch("/api/bank-accounts")
+      if (!response.ok) throw new Error("Failed to fetch bank accounts")
+      const data = await response.json()
+      setBankAccounts(data)
+    } catch (error) {
+      console.error("Failed to load bank accounts:", error)
+    }
+  }
+
   useEffect(() => {
     fetchTransactions()
+    fetchBankAccounts()
     if (isMobileApp) {
       fetchLoans()
     }
@@ -146,11 +159,47 @@ export default function TransactionsPage() {
     }
   }
 
-  const filteredTransactions = transactions.filter((t) => {
-    if (filterType !== "all" && t.type !== filterType) return false
-    if (filterCategory !== "all" && t.category !== filterCategory) return false
-    return true
-  })
+  // Calculate running balance for each transaction
+  const calculateTransactionBalances = () => {
+    // Get total current balance from all bank accounts
+    const currentTotalBalance = bankAccounts.reduce((sum, account) => sum + account.balance, 0)
+
+    // Sort all transactions by date/time (newest first)
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
+      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
+      return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime()
+    })
+
+    // Calculate balance after each transaction (working backwards from current balance)
+    let runningBalance = currentTotalBalance
+    const transactionsWithBalance = sortedTransactions.map((transaction) => {
+      const balanceAfterTransaction = runningBalance
+
+      // Update running balance for next iteration (going backwards in time)
+      if (transaction.type === "income") {
+        runningBalance -= transaction.amount // Remove this income to get previous balance
+      } else {
+        runningBalance += transaction.amount // Add back this expense to get previous balance
+      }
+
+      return {
+        ...transaction,
+        balanceAfterTransaction,
+      }
+    })
+
+    return transactionsWithBalance
+  }
+
+  const transactionsWithBalances = calculateTransactionBalances()
+
+  const filteredTransactions = transactionsWithBalances
+    .filter((t) => {
+      if (filterType !== "all" && t.type !== filterType) return false
+      if (filterCategory !== "all" && t.category !== filterCategory) return false
+      return true
+    })
 
   console.log("[TransactionPage] Filter settings - Type:", filterType, "Category:", filterCategory)
   console.log("[TransactionPage] Total transactions:", transactions.length)
@@ -241,7 +290,7 @@ export default function TransactionsPage() {
 
           {/* Unified Activity List */}
           <div data-tour="activity-list">
-            <ActivityList transactions={transactions} loans={loans} limit={20} />
+            <ActivityList transactions={transactionsWithBalances} loans={loans} limit={20} />
           </div>
         </div>
 

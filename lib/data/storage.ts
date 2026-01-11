@@ -7,7 +7,8 @@ import SIPModel from "@/lib/models/SIP";
 import BankAccountModel from "@/lib/models/BankAccount";
 import WishlistModel from "@/lib/models/Wishlist";
 import StockModel from "@/lib/models/Stock";
-import { Transaction, Budget, Loan, User, SIP, BankAccount, Wishlist, Stock } from "@/lib/types";
+import SubscriptionModel from "@/lib/models/Subscription";
+import { Transaction, Budget, Loan, User, SIP, BankAccount, Wishlist, Stock, Subscription } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
 // Ensure database connection
@@ -672,4 +673,74 @@ export async function deleteStock(userId: string, id: string): Promise<void> {
 export async function deleteAllStocks(userId: string): Promise<void> {
   await ensureConnection();
   await StockModel.deleteMany({ userId });
+}
+
+// Subscription operations
+export async function getSubscriptions(userId: string): Promise<Subscription[]> {
+  await ensureConnection();
+  const subscriptions = await SubscriptionModel.find({ userId })
+    .sort({ nextExecutionDate: 1, createdAt: -1 })
+    .lean();
+
+  return subscriptions.map((subscription) => ({
+    ...subscription,
+    _id: undefined,
+    __v: undefined,
+    id: subscription._id?.toString() || subscription.id,
+    createdAt: subscription.createdAt
+      ? new Date(subscription.createdAt).toISOString()
+      : new Date().toISOString(),
+  })) as Subscription[];
+}
+
+export async function getSubscriptionById(
+  userId: string,
+  id: string
+): Promise<Subscription | null> {
+  await ensureConnection();
+  const subscription = await SubscriptionModel.findOne({
+    _id: id,
+    userId,
+  }).lean();
+
+  if (!subscription) return null;
+
+  return {
+    ...subscription,
+    _id: undefined,
+    __v: undefined,
+    id: subscription._id?.toString() || subscription.id,
+    createdAt: subscription.createdAt
+      ? new Date(subscription.createdAt).toISOString()
+      : new Date().toISOString(),
+  } as Subscription;
+}
+
+export async function saveSubscription(userId: string, subscription: Subscription): Promise<void> {
+  await ensureConnection();
+  const { id, ...rest } = subscription;
+  await SubscriptionModel.create({
+    ...rest,
+    _id: id,
+    userId,
+  });
+}
+
+export async function updateSubscription(
+  userId: string,
+  id: string,
+  updates: Partial<Subscription>
+): Promise<void> {
+  await ensureConnection();
+  await SubscriptionModel.updateOne({ _id: id, userId }, { $set: updates });
+}
+
+export async function deleteSubscription(userId: string, id: string): Promise<void> {
+  await ensureConnection();
+  await SubscriptionModel.deleteOne({ _id: id, userId });
+}
+
+export async function deleteAllSubscriptions(userId: string): Promise<void> {
+  await ensureConnection();
+  await SubscriptionModel.deleteMany({ userId });
 }

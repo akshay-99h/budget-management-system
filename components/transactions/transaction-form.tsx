@@ -52,12 +52,14 @@ export function TransactionForm({
           amount: transaction.amount,
           category: transaction.category,
           date: transaction.date,
+          time: transaction.time || "",
           description: transaction.description,
           bankAccountId: transaction.bankAccountId,
         }
       : {
           type: "expense",
           date: new Date().toISOString().split("T")[0],
+          time: new Date().toTimeString().slice(0, 5),
         },
   })
 
@@ -208,21 +210,38 @@ export function TransactionForm({
         )}
       </div>
 
-      {/* Date */}
-      <div className="space-y-2">
-        <Label htmlFor="date" className="text-base font-semibold">
-          Date
-        </Label>
-        <Input
-          id="date"
-          type="date"
-          className="h-12 text-base"
-          {...register("date")}
-          disabled={isLoading}
-        />
-        {errors.date && (
-          <p className="text-sm text-destructive">{errors.date.message}</p>
-        )}
+      {/* Date and Time */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="date" className="text-base font-semibold">
+            Date
+          </Label>
+          <Input
+            id="date"
+            type="date"
+            className="h-12 text-base"
+            {...register("date")}
+            disabled={isLoading}
+          />
+          {errors.date && (
+            <p className="text-sm text-destructive">{errors.date.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="time" className="text-base font-semibold">
+            Time <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="time"
+            type="time"
+            className="h-12 text-base"
+            {...register("time")}
+            disabled={isLoading}
+          />
+          {errors.time && (
+            <p className="text-sm text-destructive">{errors.time.message}</p>
+          )}
+        </div>
       </div>
 
       {/* Description */}

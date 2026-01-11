@@ -4,6 +4,7 @@ export type Transaction = {
   amount: number
   category: string
   date: string
+  time?: string
   description?: string
   bankAccountId: string
   userId: string
@@ -58,6 +59,7 @@ export type SIP = {
   nextExecutionDate: string
   currentNetValue?: number
   adjustments?: SIPAdjustment[]
+  bankAccountId: string
   userId: string
   createdAt: string
 }
@@ -119,5 +121,24 @@ export type Stock = {
   userId: string
   createdAt: string
   updatedAt: string
+}
+
+export type Subscription = {
+  id: string
+  name: string
+  amount: number
+  frequency: "daily" | "weekly" | "monthly" | "yearly"
+  startDate: string
+  endDate?: string
+  category: string
+  description?: string
+  isActive: boolean
+  lastExecuted?: string
+  nextExecutionDate: string
+  bankAccountId: string
+  reminderEnabled: boolean
+  reminderDaysBefore: number
+  userId: string
+  createdAt: string
 }
 

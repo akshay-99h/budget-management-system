@@ -1,6 +1,6 @@
 export const DEFAULT_CATEGORIES = [
   { name: "Food & Dining", type: "expense" as const },
-  { name: "Transportation", type: "expense" as const },
+  { name: "Grocery", type: "expense" as const },
   { name: "Entertainment", type: "expense" as const },
   { name: "Bills & Utilities", type: "expense" as const },
   { name: "Shopping", type: "expense" as const },

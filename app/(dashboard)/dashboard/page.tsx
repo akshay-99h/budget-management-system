@@ -172,7 +172,12 @@ export default function DashboardPage() {
       const date = new Date(t.date)
       return date >= monthStart && date <= monthEnd
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => {
+      // Combine date and time for accurate sorting
+      const dateTimeA = a.time ? `${a.date}T${a.time}` : `${a.date}T00:00`
+      const dateTimeB = b.time ? `${b.date}T${b.time}` : `${b.date}T00:00`
+      return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime()
+    })
     .slice(0, 5)
 
   const categoryChartData = Object.entries(spendingByCategory).map(([name, value]) => ({
@@ -612,6 +617,7 @@ export default function DashboardPage() {
                       <p className="font-semibold text-sm sm:text-base truncate">{transaction.category}</p>
                       <p className="text-xs sm:text-sm text-muted-foreground truncate">
                         {formatDate(transaction.date)}
+                        {transaction.time && ` • ${transaction.time}`}
                         {transaction.description && (
                           <span className="hidden sm:inline"> • {transaction.description}</span>
                         )}

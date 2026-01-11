@@ -7,7 +7,7 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card"
-import { Edit, Trash2, TrendingUp, TrendingDown, ArrowRight } from "lucide-react"
+import { Edit, Trash2, TrendingUp, TrendingDown, ArrowRight, Wallet } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,8 +22,12 @@ import { useToast } from "@/hooks/use-toast"
 import { transactionSchema, type TransactionInput } from "@/lib/validations"
 import { cn } from "@/lib/utils"
 
+interface TransactionWithBalance extends Transaction {
+  balanceAfterTransaction?: number
+}
+
 interface TransactionListProps {
-  transactions: Transaction[]
+  transactions: TransactionWithBalance[]
   onUpdate: () => void
 }
 
@@ -31,10 +35,17 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
   const { toast } = useToast()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction)
     setIsDialogOpen(true)
+  }
+
+  const handleViewDetails = (transaction: Transaction) => {
+    setSelectedTransaction(transaction)
+    setIsDetailDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -119,7 +130,8 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
         {transactions.map((transaction) => (
           <Card
             key={transaction.id}
-            className="border-2 hover:shadow-md transition-all hover:border-primary/50 group"
+            className="border-2 hover:shadow-md transition-all hover:border-primary/50 group cursor-pointer"
+            onClick={() => handleViewDetails(transaction)}
           >
             <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2 sm:gap-4">
@@ -142,6 +154,12 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
                       <p className="font-semibold text-base sm:text-lg truncate">{transaction.category}</p>
                       <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
                         <span>{formatDate(transaction.date)}</span>
+                        {transaction.time && (
+                          <>
+                            <span>•</span>
+                            <span>{transaction.time}</span>
+                          </>
+                        )}
                         {transaction.description && (
                           <>
                             <span className="hidden sm:inline">•</span>
@@ -149,6 +167,12 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
                           </>
                         )}
                       </div>
+                      {transaction.balanceAfterTransaction !== undefined && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <Wallet className="h-3 w-3" />
+                          <span>Balance: {formatCurrency(transaction.balanceAfterTransaction)}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                       <div
@@ -162,20 +186,26 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
                         {transaction.type === "income" ? "+" : "-"}
                         {formatCurrency(transaction.amount)}
                       </div>
-                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEdit(transaction)}
-                          className="h-8 w-8 sm:h-9 sm:w-9 touch-manipulation"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(transaction)
+                          }}
+                          className="h-8 w-8 sm:h-9 sm:w-9 opacity-0 group-hover:opacity-100 transition-opacity touch-manipulation"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(transaction.id)}
-                          className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive touch-manipulation"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(transaction.id)
+                          }}
+                          className="h-8 w-8 sm:h-9 sm:w-9 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive touch-manipulation"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -208,6 +238,127 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
               setEditingTransaction(null)
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Transaction Details</DialogTitle>
+            <DialogDescription>
+              View complete information about this transaction
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTransaction && (
+            <div className="space-y-6">
+              {/* Transaction Type & Amount */}
+              <div className="flex items-center justify-between p-4 rounded-lg border-2 bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "h-14 w-14 rounded-full flex items-center justify-center",
+                      selectedTransaction.type === "income"
+                        ? "bg-green-100 dark:bg-green-900/30"
+                        : "bg-red-100 dark:bg-red-900/30"
+                    )}
+                  >
+                    {selectedTransaction.type === "income" ? (
+                      <TrendingUp className="h-7 w-7 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <TrendingDown className="h-7 w-7 text-red-600 dark:text-red-400" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground capitalize">
+                      {selectedTransaction.type}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-3xl font-bold",
+                        selectedTransaction.type === "income"
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      {selectedTransaction.type === "income" ? "+" : "-"}
+                      {formatCurrency(selectedTransaction.amount)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Details Grid */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Category</p>
+                    <p className="text-base font-semibold">{selectedTransaction.category}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Date & Time</p>
+                    <p className="text-base font-semibold">
+                      {formatDate(selectedTransaction.date)}
+                      {selectedTransaction.time && ` • ${selectedTransaction.time}`}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedTransaction.balanceAfterTransaction !== undefined && (
+                  <div className="p-3 rounded-lg border-2 bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">Balance After Transaction</p>
+                        <p className="text-lg font-bold">
+                          {formatCurrency(selectedTransaction.balanceAfterTransaction)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedTransaction.description && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Description</p>
+                    <p className="text-base">{selectedTransaction.description}</p>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Transaction ID</p>
+                  <p className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                    {selectedTransaction.id}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    setIsDetailDialogOpen(false)
+                    handleEdit(selectedTransaction)
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2 text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setIsDetailDialogOpen(false)
+                    handleDelete(selectedTransaction.id)
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

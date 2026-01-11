@@ -18,6 +18,11 @@ export const transactionSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  time: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, "Time must be in HH:MM format")
+    .optional()
+    .or(z.literal("")),
   description: z.string().optional(),
   bankAccountId: z.string().min(1, "Bank account is required"),
 });
@@ -107,6 +112,7 @@ export const sipSchema = z.object({
     .nonnegative("Current net value must be non-negative")
     .optional(),
   adjustments: z.array(sipAdjustmentSchema).optional(),
+  bankAccountId: z.string().min(1, "Bank account is required"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -164,3 +170,25 @@ export const stockSchema = z.object({
 });
 
 export type StockInput = z.infer<typeof stockSchema>;
+
+export const subscriptionSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  amount: z.number().positive("Amount must be positive"),
+  frequency: z.enum(["daily", "weekly", "monthly", "yearly"]),
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Start date must be in YYYY-MM-DD format"),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "End date must be in YYYY-MM-DD format")
+    .optional()
+    .or(z.literal("")),
+  category: z.string().min(1, "Category is required"),
+  description: z.string().optional().or(z.literal("")),
+  isActive: z.boolean().optional(),
+  bankAccountId: z.string().min(1, "Bank account is required"),
+  reminderEnabled: z.boolean().optional(),
+  reminderDaysBefore: z.number().min(0).max(30).optional(),
+});
+
+export type SubscriptionInput = z.infer<typeof subscriptionSchema>;
