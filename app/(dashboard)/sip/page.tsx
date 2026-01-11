@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { SIP, SIPAdjustment } from "@/lib/types"
+import { SIP, SIPAdjustment, BankAccount } from "@/lib/types"
 import { Switch } from "@/components/ui/switch"
 import { calculateTotalInvested } from "@/lib/utils/sip"
 import { parseISO, isBefore } from "date-fns"
@@ -33,6 +33,7 @@ import { Trash2 as Trash2Icon, Plus as PlusIcon } from "lucide-react"
 
 export default function SIPPage() {
   const [sips, setSips] = useState<SIP[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSip, setEditingSip] = useState<SIP | null>(null)
@@ -49,11 +50,13 @@ export default function SIPPage() {
     isActive: true,
     currentNetValue: undefined as number | undefined,
     adjustments: [] as SIPAdjustment[],
+    bankAccountId: "",
   })
   const [showAdjustments, setShowAdjustments] = useState(false)
 
   useEffect(() => {
     fetchSIPs()
+    fetchBankAccounts()
   }, [])
 
   const fetchSIPs = async () => {
@@ -71,6 +74,22 @@ export default function SIPPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await fetch("/api/bank-accounts")
+      if (response.ok) {
+        const data = await response.json()
+        setBankAccounts(data)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch bank accounts",
+        variant: "destructive",
+      })
     }
   }
 
@@ -135,11 +154,13 @@ export default function SIPPage() {
       isActive: sip.isActive,
       currentNetValue: sip.currentNetValue,
       adjustments: sip.adjustments || [],
+      bankAccountId: sip.bankAccountId || "",
     })
     setIsDialogOpen(true)
   }
 
   const resetForm = () => {
+    const defaultAccount = bankAccounts.find(acc => acc.isDefault) || bankAccounts[0]
     setFormData({
       name: "",
       amount: 0,
@@ -151,6 +172,7 @@ export default function SIPPage() {
       isActive: true,
       currentNetValue: undefined,
       adjustments: [],
+      bankAccountId: defaultAccount?.id || "",
     })
     setEditingSip(null)
     setShowAdjustments(false)
@@ -452,6 +474,21 @@ export default function SIPPage() {
                   onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankAccountId">Bank Account *</Label>
+                <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({ ...formData, bankAccountId: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} {account.isDefault && "(Default)"} - ₹{account.balance.toLocaleString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="frequency">Frequency *</Label>
