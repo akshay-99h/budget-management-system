@@ -105,6 +105,7 @@ export async function getBudgets(userId: string): Promise<Budget[]> {
     month: b.month,
     limit: b.limit,
     userId: b.userId,
+    isSIPBudget: b.isSIPBudget ?? false,
   }));
 }
 
@@ -121,6 +122,7 @@ export async function saveBudget(
       month: budget.month,
       limit: budget.limit,
       userId,
+      isSIPBudget: budget.isSIPBudget ?? false,
     },
     { upsert: true, new: true }
   );

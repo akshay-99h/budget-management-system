@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
-import { Trash2, AlertCircle, CheckCircle2, Target } from "lucide-react"
+import { Trash2, AlertCircle, CheckCircle2, Target, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface BudgetCardProps {
@@ -43,7 +43,15 @@ export function BudgetCard({ budget, spent, onDelete }: BudgetCardProps) {
               )} />
             </div>
             <div>
-              <CardTitle className="text-lg">{budget.category}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg">{budget.category}</CardTitle>
+                {budget.isSIPBudget && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
+                    <TrendingUp className="h-3 w-3" />
+                    SIP
+                  </span>
+                )}
+              </div>
               <CardDescription className="text-sm">
                 Limit: {formatCurrency(budget.limit)}
               </CardDescription>

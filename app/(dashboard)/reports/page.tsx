@@ -12,6 +12,7 @@ import {
   getMonthlyExpenses,
   getMonthlySpending,
   getBudgetStatus,
+  getMonthlySIPSpending,
 } from "@/lib/data/analytics"
 import { format } from "date-fns"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -206,9 +207,11 @@ export default function ReportsPage() {
 
   const monthlyIncome = getMonthlyIncome(transactions, selectedMonth)
   const monthlyExpenses = getMonthlyExpenses(transactions, selectedMonth)
-  const spendingByCategory = getMonthlySpending(transactions, selectedMonth)
+  // Get regular spending (excluding SIPs) and SIP spending separately
+  const spendingByCategory = getMonthlySpending(transactions, selectedMonth, true) // Exclude SIPs
+  const sipSpendingByCategory = getMonthlySIPSpending(transactions, selectedMonth)
   const monthlyBudgets = budgets.filter((b) => b.month === selectedMonth)
-  const budgetStatuses = getBudgetStatus(monthlyBudgets, spendingByCategory)
+  const budgetStatuses = getBudgetStatus(monthlyBudgets, spendingByCategory, sipSpendingByCategory)
 
   const monthlyTransactions = transactions.filter((t) => {
     const transactionMonth = format(new Date(t.date), "yyyy-MM")

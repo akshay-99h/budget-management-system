@@ -6,6 +6,7 @@ import { budgetSchema, type BudgetInput } from "@/lib/validations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -43,9 +44,11 @@ export function BudgetForm({
           category: budget.category,
           month: budget.month,
           limit: budget.limit,
+          isSIPBudget: budget.isSIPBudget ?? false,
         }
       : {
           month: format(new Date(), "yyyy-MM"),
+          isSIPBudget: false,
         },
   })
 
@@ -101,6 +104,26 @@ export function BudgetForm({
           <p className="text-sm text-destructive">{errors.limit.message}</p>
         )}
       </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="isSIPBudget"
+          checked={watch("isSIPBudget")}
+          onCheckedChange={(checked) => setValue("isSIPBudget", checked === true)}
+          disabled={isLoading}
+        />
+        <Label
+          htmlFor="isSIPBudget"
+          className="text-sm font-normal cursor-pointer"
+        >
+          SIP Budget (Only count SIP transactions against this budget)
+        </Label>
+      </div>
+      {watch("isSIPBudget") && (
+        <p className="text-xs text-muted-foreground">
+          Regular transactions will not count against this budget. Only SIP investment transactions will be tracked.
+        </p>
+      )}
 
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

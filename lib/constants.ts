@@ -8,6 +8,7 @@ export const DEFAULT_CATEGORIES = [
   { name: "Education", type: "expense" as const },
   { name: "Personal Care", type: "expense" as const },
   { name: "Travel", type: "expense" as const },
+  { name: "SIP", type: "expense" as const },
   { name: "Other", type: "expense" as const },
   { name: "Salary", type: "income" as const },
   { name: "Freelance", type: "income" as const },

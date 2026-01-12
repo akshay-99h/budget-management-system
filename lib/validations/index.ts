@@ -31,6 +31,7 @@ export const budgetSchema = z.object({
   category: z.string().min(1, "Category is required"),
   month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format"),
   limit: z.number().positive("Limit must be positive"),
+  isSIPBudget: z.boolean().optional().default(false),
 });
 
 export const loanSchema = z.object({

@@ -140,7 +140,7 @@ export async function POST(request: Request) {
               id: uuidv4(),
               type: "expense" as const,
               amount: sip.amount,
-              category: sip.category,
+              category: "SIP",
               date: today,
               time: new Date().toTimeString().slice(0, 5),
               description: `${sip.name} - SIP Investment`,

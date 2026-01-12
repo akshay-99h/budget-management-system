@@ -18,6 +18,7 @@ export type Budget = {
   month: string
   limit: number
   userId: string
+  isSIPBudget?: boolean // If true, only SIP transactions count against this budget
 }
 
 export type Loan = {

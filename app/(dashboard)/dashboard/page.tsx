@@ -9,6 +9,7 @@ import {
   getMonthlyExpenses,
   getMonthlySpending,
   getBudgetStatus,
+  getMonthlySIPSpending,
 } from "@/lib/data/analytics"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 import {
@@ -139,9 +140,11 @@ export default function DashboardPage() {
   const monthlyIncome = getMonthlyIncome(transactions, currentMonth)
   const monthlyExpenses = getMonthlyExpenses(transactions, currentMonth)
   const netIncome = monthlyIncome - monthlyExpenses
-  const spendingByCategory = getMonthlySpending(transactions, currentMonth)
+  // Get regular spending (excluding SIPs) and SIP spending separately
+  const spendingByCategory = getMonthlySpending(transactions, currentMonth, true) // Exclude SIPs
+  const sipSpendingByCategory = getMonthlySIPSpending(transactions, currentMonth)
   const monthlyBudgets = budgets.filter((b) => b.month === currentMonth)
-  const budgetStatuses = getBudgetStatus(monthlyBudgets, spendingByCategory)
+  const budgetStatuses = getBudgetStatus(monthlyBudgets, spendingByCategory, sipSpendingByCategory)
 
   const totalOutstandingLoans = loans
     .filter((l) => l.status !== "paid")

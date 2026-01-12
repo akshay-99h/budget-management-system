@@ -6,6 +6,7 @@ export interface IBudget extends Document {
   month: string
   limit: number
   userId: string
+  isSIPBudget?: boolean // If true, only SIP transactions count against this budget
 }
 
 const BudgetSchema = new Schema<IBudget>(
@@ -31,6 +32,10 @@ const BudgetSchema = new Schema<IBudget>(
       type: String,
       required: true,
       index: true,
+    },
+    isSIPBudget: {
+      type: Boolean,
+      default: false,
     },
   },
   {

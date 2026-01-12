@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { budgetSchema, type BudgetInput } from "@/lib/validations"
-import { getMonthlySpending, getBudgetStatus } from "@/lib/data/analytics"
+import { getMonthlySpending, getBudgetStatus, getMonthlySIPSpending } from "@/lib/data/analytics"
 import { format } from "date-fns"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
@@ -113,8 +113,10 @@ export default function BudgetsPage() {
   }
 
   const monthlyBudgets = budgets.filter((b) => b.month === selectedMonth)
-  const spendingByCategory = getMonthlySpending(transactions, selectedMonth)
-  const budgetStatuses = getBudgetStatus(monthlyBudgets, spendingByCategory)
+  // Get regular spending (excluding SIPs) and SIP spending separately
+  const spendingByCategory = getMonthlySpending(transactions, selectedMonth, true) // Exclude SIPs
+  const sipSpendingByCategory = getMonthlySIPSpending(transactions, selectedMonth)
+  const budgetStatuses = getBudgetStatus(monthlyBudgets, spendingByCategory, sipSpendingByCategory)
 
   if (isLoading) {
     return (
@@ -207,16 +209,45 @@ export default function BudgetsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {budgetStatuses.map(({ budget, spent }) => (
-            <BudgetCard
-              key={budget.id}
-              budget={budget}
-              spent={spent}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
+        <>
+          {/* Regular Budgets */}
+          {budgetStatuses.filter(({ budget }) => !budget.isSIPBudget).length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Regular Budgets</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {budgetStatuses
+                  .filter(({ budget }) => !budget.isSIPBudget)
+                  .map(({ budget, spent }) => (
+                    <BudgetCard
+                      key={budget.id}
+                      budget={budget}
+                      spent={spent}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+          
+          {/* SIP Budgets */}
+          {budgetStatuses.filter(({ budget }) => budget.isSIPBudget).length > 0 && (
+            <div className="space-y-4 mt-6">
+              <h2 className="text-xl font-semibold">SIP Budgets</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {budgetStatuses
+                  .filter(({ budget }) => budget.isSIPBudget)
+                  .map(({ budget, spent }) => (
+                    <BudgetCard
+                      key={budget.id}
+                      budget={budget}
+                      spent={spent}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
