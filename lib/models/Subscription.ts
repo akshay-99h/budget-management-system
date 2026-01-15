@@ -2,6 +2,11 @@ import mongoose from "mongoose"
 
 const SubscriptionSchema = new mongoose.Schema(
   {
+    id: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     name: {
       type: String,
       required: true,
@@ -61,7 +66,7 @@ const SubscriptionSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { _id: false, timestamps: true }
 )
 
 const SubscriptionModel =

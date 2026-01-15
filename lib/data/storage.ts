@@ -699,7 +699,7 @@ export async function getSubscriptions(userId: string): Promise<Subscription[]> 
     ...subscription,
     _id: undefined,
     __v: undefined,
-    id: subscription._id?.toString() || subscription.id,
+    id: subscription.id || subscription._id?.toString() || "",
     createdAt: subscription.createdAt
       ? new Date(subscription.createdAt).toISOString()
       : new Date().toISOString(),
@@ -712,7 +712,7 @@ export async function getSubscriptionById(
 ): Promise<Subscription | null> {
   await ensureConnection();
   const subscription = await SubscriptionModel.findOne({
-    _id: id,
+    id,
     userId,
   }).lean();
 
@@ -722,7 +722,7 @@ export async function getSubscriptionById(
     ...subscription,
     _id: undefined,
     __v: undefined,
-    id: subscription._id?.toString() || subscription.id,
+    id: subscription.id || subscription._id?.toString() || "",
     createdAt: subscription.createdAt
       ? new Date(subscription.createdAt).toISOString()
       : new Date().toISOString(),
@@ -734,7 +734,7 @@ export async function saveSubscription(userId: string, subscription: Subscriptio
   const { id, ...rest } = subscription;
   await SubscriptionModel.create({
     ...rest,
-    _id: id,
+    id,
     userId,
   });
 }
@@ -745,12 +745,12 @@ export async function updateSubscription(
   updates: Partial<Subscription>
 ): Promise<void> {
   await ensureConnection();
-  await SubscriptionModel.updateOne({ _id: id, userId }, { $set: updates });
+  await SubscriptionModel.updateOne({ id, userId }, { $set: updates });
 }
 
 export async function deleteSubscription(userId: string, id: string): Promise<void> {
   await ensureConnection();
-  await SubscriptionModel.deleteOne({ _id: id, userId });
+  await SubscriptionModel.deleteOne({ id, userId });
 }
 
 export async function deleteAllSubscriptions(userId: string): Promise<void> {
